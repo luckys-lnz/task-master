@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { Todo } from "@/lib/types"
+import { NotificationService } from "@/lib/services/notifications"
 
 export default function TodoList() {
   const { todos, isLoading, error, addTodo, updateTodo, deleteTodo, clearAllTodos, reorderTodos, sortTodos, stats } =
@@ -32,6 +33,19 @@ export default function TodoList() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [showClearDialog, setShowClearDialog] = useState(false)
   const { toast } = useToast()
+
+  // Initialize notification service
+  useEffect(() => {
+    const notificationService = NotificationService.getInstance()
+    
+    // Request notification permission
+    notificationService.requestNotificationPermission()
+    
+    // Start monitoring tasks
+    const cleanup = notificationService.startMonitoring(todos)
+    
+    return () => cleanup()
+  }, [todos])
 
   // Keyboard shortcuts
   useEffect(() => {
