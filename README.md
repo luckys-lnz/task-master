@@ -1,73 +1,76 @@
 # Task Master
 
-Task Master is a modern task management application built with Next.js, TypeScript, and Tailwind CSS. It provides a clean and intuitive interface for managing tasks, profiles, and settings.
+A beautiful task management application built with Next.js, Clerk, and PostgreSQL.
 
 ## Features
 
-- **Task Management**: Add, edit, and delete tasks with ease.
-- **User Profiles**: Manage user profiles with a customizable profile edit form.
-- **Settings**: Configure application settings to suit your needs.
-- **Dark Mode**: Toggle between light and dark modes using the mode toggle component.
-- **Rich Text Editor**: Use a rich text editor for detailed task descriptions.
-- **Drag and Drop**: Reorder tasks using drag-and-drop functionality powered by `@hello-pangea/dnd`.
-- **Responsive Design**: Fully responsive UI built with Tailwind CSS.
+- 🔐 Authentication with Clerk
+- 📝 Task management
+- 🎨 Beautiful UI with dark mode support
+- 📱 Responsive design
+- 🚀 Fast and performant
+- 🔄 Real-time updates
+- 📊 Task analytics
 
 ## Tech Stack
 
-- **Framework**: [Next.js](https://nextjs.org/)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **State Management**: [React Hook Form](https://react-hook-form.com/)
-- **UI Components**: [Radix UI](https://www.radix-ui.com/)
-- **Rich Text Editor**: [Tiptap](https://tiptap.dev/)
-- **Drag and Drop**: [@hello-pangea/dnd](https://github.com/hello-pangea/dnd)
+- Next.js 14
+- React 18
+- TypeScript
+- Tailwind CSS
+- Clerk Authentication
+- PostgreSQL with Drizzle ORM
+- Sonner for toast notifications
 
-## Installation
+## Getting Started
 
-1. Clone the repository:
+1. Clone the repository
+```bash
+git clone https://github.com/yourusername/task-master.git
+cd task-master
+```
 
-   ```bash
-   git clone https://github.com/your-username/task-master.git
-   cd task-master
-   
-   ````
+2. Install dependencies
+```bash
+npm install
+```
 
-2. Install Dependencies
+3. Set up environment variables
+Create a `.env.local` file with the following variables:
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+DATABASE_URL=postgresql://user:password@localhost:5432/taskmaster
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
-    ```bash
-    npm install
-    ```
+4. Set up the database
+```bash
+npm run db:generate
+npm run db:migrate
+```
 
-3. Start Development Server
+5. Start the development server
+```bash
+npm run dev
+```
 
-    ```bash
-    npm run dev
-    ```
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-4. Open browser
+## Available Scripts
 
-    ```
-    [localhost](http://localhost:3000.)
-    ```
+- `npm run dev` - Start the development server
+- `npm run build` - Build the application for production
+- `npm run start` - Start the production server
+- `npm run lint` - Run ESLint
+- `npm run db:generate` - Generate database migrations
+- `npm run db:migrate` - Run database migrations
+- `npm run db:studio` - Open Drizzle Studio
 
+## Contributing
 
-# Contributing
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-    Contributions are welcome! Please follow these steps:
+## License
 
-    1. Fork the repository.
-    2. Create a new branch for your feature or bug fix.
-    3. Commit your changes and push the branch.
-    4. Open a pull request.
-
-# License
-
-    This project is licensed under the MIT License. See the LICENSE file for details.
-
-# Acknowledgments
-
-   - Next.js
-   - Tailwind CSS
-   - Radix UI
-   - Tiptap
-   - @hello-pangea/dnd
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
