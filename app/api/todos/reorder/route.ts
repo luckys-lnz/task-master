@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server"
-
-// In a real app, this would be a database
-// For now, we're using the same array from the main route
-// This is just for demonstration purposes
 import { todos } from "../route"
+import type { Todo } from "@/lib/types"
+
 
 export async function POST(request: Request) {
   try {
@@ -13,10 +11,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "orderedIds must be an array" }, { status: 400 })
     }
 
-    // Create a new array with the todos in the specified order
-    const reorderedTodos = orderedIds.map((id) => todos.find((todo) => todo.id === id)).filter(Boolean)
+    const reorderedTodos = orderedIds
+      .map((id) => todos.find((todo) => todo.id === id))
+      .filter((todo): todo is Todo => todo !== undefined)
 
-    // Add any todos that weren't in the orderedIds array
     const remainingTodos = todos.filter((todo) => !orderedIds.includes(todo.id))
 
     // Update the todos array
