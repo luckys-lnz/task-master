@@ -16,7 +16,7 @@ interface ProfileEditFormProps {
   profile: {
     name: string
     email: string
-    avatar: string
+    avatarUrl: string
     location: string
     bio: string
   }
@@ -27,7 +27,7 @@ interface ProfileEditFormProps {
 export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormProps) {
   const [formData, setFormData] = useState({ ...profile })
   const [isLoading, setIsLoading] = useState(false)
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
   const { toast } = useToast()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -35,7 +35,7 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -59,35 +59,71 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
       return
     }
 
-    // Create a preview URL
-    const reader = new FileReader()
-    reader.onload = () => {
-      setPreviewImage(reader.result as string)
+    try {
+      setIsUploading(true)
+
+      // Get signed URL for upload
+      const response = await fetch('/api/profile/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get upload URL')
+      }
+
+      const { signedUrl, avatarUrl } = await response.json()
+
+      // Upload to S3
+      await fetch(signedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      })
+
+      // Update form data with new avatar URL
+      setFormData((prev) => ({ ...prev, avatarUrl }))
+
+      toast({
+        title: "Success",
+        description: "Profile picture updated successfully",
+      })
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast({
+        title: "Error",
+        description: "Failed to upload profile picture",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploading(false)
     }
-    reader.readAsDataURL(file)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      // In a real app, we would upload the image to a server
-      // and get back a URL to store in the profile
-      const updatedProfile = {
-        ...formData,
-        avatar: previewImage || formData.avatar,
-      }
-
-      onSave(updatedProfile)
-      setIsLoading(false)
-
+    try {
+      await onSave(formData)
+    } catch (error) {
+      console.error('Error saving profile:', error)
       toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully",
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive",
       })
-    }, 1000)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -97,7 +133,7 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
           <div className="flex flex-col items-center">
             <div className="relative">
               <Avatar className="h-32 w-32">
-                <AvatarImage src={previewImage || formData.avatar} alt={formData.name} />
+                <AvatarImage src={formData.avatarUrl} alt={formData.name} />
                 <AvatarFallback>
                   {formData.name
                     .split(" ")
@@ -108,11 +144,23 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
               <Label
                 htmlFor="avatar-upload"
                 className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer shadow-md hover:bg-primary/90 transition-colors"
+                disabled={isUploading}
               >
-                <Camera className="h-4 w-4" />
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
                 <span className="sr-only">Upload avatar</span>
               </Label>
-              <Input id="avatar-upload" type="file" accept="image/*" className="sr-only" onChange={handleImageChange} />
+              <Input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={handleImageChange}
+                disabled={isUploading}
+              />
             </div>
             <p className="text-xs text-muted-foreground mt-2">Click the camera icon to change your profile picture</p>
           </div>
@@ -169,10 +217,10 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
           </div>
         </CardContent>
         <CardFooter className="border-t bg-muted/50 flex justify-between">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading || isUploading}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" disabled={isLoading || isUploading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isLoading ? "Saving..." : "Save Changes"}
           </Button>
