@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -9,8 +8,20 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    domains: [
+      'images.clerk.dev',
+      'taskmaster.s3.amazonaws.com',
+      'taskmaster.s3.your-region.amazonaws.com',
+    ],
+    formats: ['image/avif', 'image/webp'],
   },
+  experimental: {
+    optimizeCss: true,
+  },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  output: 'standalone',
 }
 
 export default nextConfig
