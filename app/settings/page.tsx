@@ -10,10 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { Bell, Moon, Sun, Trash2, Save } from "lucide-react"
+import { NotificationService } from "@/lib/services/notifications"
 
 export default function SettingsPage() {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const notificationService = NotificationService.getInstance()
 
   // These would be loaded from user preferences in a real app
   const [settings, setSettings] = useState({
@@ -22,12 +24,29 @@ export default function SettingsPage() {
       email: true,
       push: true,
       reminders: true,
+      browser: true,
     },
     defaultPriority: "medium",
     defaultCategory: "personal",
     taskRetention: "30",
     exportFormat: "json",
   })
+
+  const handleNotificationPermission = async () => {
+    const granted = await notificationService.requestNotificationPermission()
+    if (granted) {
+      toast({
+        title: "Notifications enabled",
+        description: "You will now receive browser notifications for overdue tasks.",
+      })
+    } else {
+      toast({
+        title: "Notifications disabled",
+        description: "Please enable notifications in your browser settings to receive task reminders.",
+        variant: "destructive",
+      })
+    }
+  }
 
   const handleSave = () => {
     setIsLoading(true)
@@ -150,6 +169,30 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="browser-notifications">Browser Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Receive notifications in your browser for overdue tasks.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="browser-notifications"
+                      checked={settings.notifications.browser}
+                      onCheckedChange={(checked) => {
+                        setSettings({
+                          ...settings,
+                          notifications: { ...settings.notifications, browser: checked },
+                        })
+                        if (checked) {
+                          handleNotificationPermission()
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="email-notifications">Email Notifications</Label>
