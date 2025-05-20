@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { CalendarDays, Mail, MapPin, Edit } from "lucide-react"
 import { ProfileEditForm } from "@/components/profile-edit-form"
 import { useToast } from "@/hooks/use-toast"
-import { useUser } from "@clerk/nextjs"
 import { format } from "date-fns"
 
 interface UserStats {
@@ -28,7 +25,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const { user } = useUser()
+  // const { user } = useUser()
   const { toast } = useToast()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [stats, setStats] = useState<UserStats | null>(null)
@@ -134,7 +131,7 @@ export default function ProfilePage() {
           <>
             <Card className="md:col-span-1">
               <CardContent className="pt-6 flex flex-col items-center text-center">
-                <Avatar className="h-32 w-32">
+                {/* <Avatar className="h-32 w-32">
                   <AvatarImage src={profile.avatarUrl} alt={profile.name} />
                   <AvatarFallback>
                     {profile.name
@@ -142,7 +139,7 @@ export default function ProfilePage() {
                       .map((n) => n[0])
                       .join("")}
                   </AvatarFallback>
-                </Avatar>
+                </Avatar> */}
                 <h2 className="text-xl font-bold mt-4">{profile.name}</h2>
                 <p className="text-sm text-muted-foreground">{profile.email}</p>
 
@@ -174,7 +171,7 @@ export default function ProfilePage() {
                   <p>{profile.bio || 'No bio provided'}</p>
                 </div>
 
-                <Separator />
+                {/* <Separator /> */}
 
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-3">Statistics</h3>
