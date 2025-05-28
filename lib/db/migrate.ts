@@ -1,22 +1,20 @@
-import { drizzle } from 'drizzle-orm/postgres-js'
-import { migrate } from 'drizzle-orm/postgres-js/migrator'
-import postgres from 'postgres'
+import { drizzle } from 'drizzle-orm/node-postgres'
+import { migrate } from 'drizzle-orm/node-postgres/migrator'
+import { Pool } from 'pg'
 import * as schema from './schema'
 import path from 'path'
+import 'dotenv/config'
 
 if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL is not defined')
+  throw new Error('DATABASE_URL environment variable is not set');
 }
 
-const connectionString = process.env.DATABASE_URL
-
-// Disable prefetch as it is not supported for "Transaction" pool mode
-const client = postgres(connectionString, { 
-  prepare: false,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 })
 
-const db = drizzle(client, { schema })
+const db = drizzle(pool, { schema })
 
 async function main() {
   console.log('Running migrations...')
@@ -27,6 +25,8 @@ async function main() {
   } catch (error) {
     console.error('❌ Migration failed:', error)
     process.exit(1)
+  } finally {
+    await pool.end()
   }
 }
 
