@@ -1,33 +1,105 @@
-import { pgTable, text, timestamp, boolean, serial, jsonb } from 'drizzle-orm/pg-core'
+import { relations } from "drizzle-orm";
+import { pgTable, uuid, text, timestamp, boolean } from "drizzle-orm/pg-core";
 
-export const users = pgTable('users', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  avatarUrl: text('avatar_url'),
-  location: text('location'),
-  bio: text('bio'),
-  preferences: jsonb('preferences').default({}),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+// Define priority enum values
+export const TaskPriority = {
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+  URGENT: "URGENT",
+} as const;
 
-export const tasks = pgTable('tasks', {
-  id: serial('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id),
-  title: text('title').notNull(),
-  description: text('description'),
-  status: text('status').notNull().default('todo'),
-  priority: text('priority').notNull().default('medium'),
-  dueDate: timestamp('due_date'),
-  completed: boolean('completed').default(false).notNull(),
-  tags: text('tags').array(),
-  metadata: jsonb('metadata').default({}),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+export type TaskPriorityType = typeof TaskPriority[keyof typeof TaskPriority];
 
-export type User = typeof users.$inferSelect
-export type NewUser = typeof users.$inferInsert
-export type Task = typeof tasks.$inferSelect
-export type NewTask = typeof tasks.$inferInsert 
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name"),
+  email: text("email").unique().notNull(),
+  email_verified: timestamp("email_verified", { mode: "date" }),
+  image: text("image"),
+  hashed_password: text("hashed_password"),
+  avatar_url: text("avatar_url"),
+  notifications_enabled: boolean("notifications_enabled").default(true),
+  default_view: text("default_view").default("list"),
+  theme: text("theme").default("light"),
+  created_at: timestamp("created_at").defaultNow().notNull()
+});
+
+export const tasks = pgTable("tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  due_date: timestamp("due_date", { mode: "date" }),
+  priority: text("priority").notNull().default("LOW"),
+  tags: text("tags").array(),
+  position: text("position"),
+  is_completed: boolean("is_completed").default(false),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+});
+
+export const subtasks = pgTable("subtasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  task_id: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  is_completed: boolean("is_completed").default(false)
+});
+
+// Define relations
+export const usersRelations = relations(users, ({ many }) => ({
+  tasks: many(tasks)
+}));
+
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
+  user: one(users, {
+    fields: [tasks.user_id],
+    references: [users.id],
+  }),
+  subtasks: many(subtasks)
+}));
+
+export const subtasksRelations = relations(subtasks, ({ one }) => ({
+  task: one(tasks, {
+    fields: [subtasks.task_id],
+    references: [tasks.id],
+  })
+}));
+
+// Auth tables
+export const accounts = pgTable("accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  provider: text("provider").notNull(),
+  providerAccountId: text("providerAccountId").notNull(),
+  refresh_token: text("refresh_token"),
+  access_token: text("access_token"),
+  expires_at: timestamp("expires_at"),
+  token_type: text("token_type"),
+  scope: text("scope"),
+  id_token: text("id_token"),
+  session_state: text("session_state")
+});
+
+export const sessions = pgTable("sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sessionToken: text("sessionToken").unique().notNull(),
+  expires: timestamp("expires").notNull()
+});
+
+export const verificationTokens = pgTable("verification_tokens", {
+  identifier: text("identifier").notNull(),
+  token: text("token").notNull(),
+  expires: timestamp("expires").notNull(),
+}, (vt) => ({
+  compoundKey: [vt.identifier, vt.token],
+}));
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Task = typeof tasks.$inferSelect;
+export type NewTask = typeof tasks.$inferInsert;
+export type SubTask = typeof subtasks.$inferSelect;
+export type NewSubTask = typeof subtasks.$inferInsert;
