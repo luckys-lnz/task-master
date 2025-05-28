@@ -1,20 +1,25 @@
-export interface Todo {
+export interface Task {
   id: string
   title: string
   description: string
   category: string
-  priority: string
+  priority: 'low' | 'medium' | 'high' | 'urgent'
   tags: string[]
   dueDate: string
   dueTime: string
   completed: boolean
   notes: string
-  subtasks: SubTask[]
+  subtasks: Subtask[]
+  attachments?: string[] // URLs to uploaded files
   createdAt: string
 }
 
-export interface SubTask {
+export interface Subtask {
   id: string
   title: string
   completed: boolean
+}
+
+export interface TaskFormData extends Omit<Task, 'id' | 'createdAt' | 'attachments'> {
+  attachments?: File[]
 }
