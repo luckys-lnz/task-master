@@ -1,50 +1,32 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import type { Todo } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 
-// For localStorage support
+// For offline support
 const STORAGE_KEY = "taskmaster-todos"
 
-export function useCookieTodos() {
+export function useTodos() {
   const [todos, setTodos] = useState<Todo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const { toast } = useToast()
 
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const total = todos.length
-    const completed = todos.filter((todo) => todo.completed).length
-    const pending = total - completed
-    const overdue = todos.filter((todo) => {
-      if (!todo.dueDate || todo.completed) return false
-      const dueDate = new Date(todo.dueDate)
-      dueDate.setHours(23, 59, 59, 999)
-      return dueDate < new Date()
-    }).length
-    const dueToday = todos.filter((todo) => {
-      if (!todo.dueDate || todo.completed) return false
-      const dueDate = new Date(todo.dueDate)
-      const today = new Date()
-      return (
-        dueDate.getDate() === today.getDate() &&
-        dueDate.getMonth() === today.getMonth() &&
-        dueDate.getFullYear() === today.getFullYear()
-      )
-    }).length
-
-    return { total, completed, pending, overdue, dueToday }
-  }, [todos])
-
-  // Load todos from localStorage on initial render
+  // Load todos from local storage on initial render
   useEffect(() => {
     const loadTodos = async () => {
       try {
         setIsLoading(true)
+
+        // In a real app, we would fetch from an API first
+        // const response = await fetch('/api/todos');
+        // const data = await response.json();
+
+        // For now, we'll use localStorage for offline support
         const storedTodos = localStorage.getItem(STORAGE_KEY)
         const parsedTodos = storedTodos ? JSON.parse(storedTodos) : []
+
         setTodos(parsedTodos)
         setError(null)
       } catch (err) {
@@ -65,8 +47,9 @@ export function useCookieTodos() {
     const handleOnline = () => {
       toast({
         title: "You are online",
-        description: "Changes will be saved locally",
+        description: "Changes will be synced to the server",
       })
+      // In a real app, we would sync with the server here
     }
 
     const handleOffline = () => {
@@ -85,7 +68,7 @@ export function useCookieTodos() {
     }
   }, [toast])
 
-  // Save todos to localStorage whenever they change
+  // Save todos to local storage whenever they change
   useEffect(() => {
     if (!isLoading) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(todos))
@@ -94,6 +77,14 @@ export function useCookieTodos() {
 
   const addTodo = async (todo: Todo) => {
     try {
+      // In a real app, we would send to an API
+      // const response = await fetch('/api/todos', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(todo),
+      // });
+      // const data = await response.json();
+
       setTodos((prevTodos) => [...prevTodos, todo])
 
       toast({
@@ -112,12 +103,15 @@ export function useCookieTodos() {
 
   const updateTodo = async (id: string, updates: Partial<Todo>) => {
     try {
-      setTodos((prevTodos) => prevTodos.map((todo) => (todo.id === id ? { ...todo, ...updates } : todo)))
+      // In a real app, we would send to an API
+      // const response = await fetch(`/api/todos/${id}`, {
+      //   method: 'PATCH',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(updates),
+      // });
+      // const data = await response.json();
 
-      toast({
-        title: "Task updated",
-        description: "Your task has been updated successfully",
-      })
+      setTodos((prevTodos) => prevTodos.map((todo) => (todo.id === id ? { ...todo, ...updates } : todo)))
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to update todo"))
       toast({
@@ -130,6 +124,11 @@ export function useCookieTodos() {
 
   const deleteTodo = async (id: string) => {
     try {
+      // In a real app, we would send to an API
+      // await fetch(`/api/todos/${id}`, {
+      //   method: 'DELETE',
+      // });
+
       setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id))
 
       toast({
@@ -146,23 +145,6 @@ export function useCookieTodos() {
     }
   }
 
-  const clearAllTodos = async () => {
-    try {
-      setTodos([])
-      toast({
-        title: "All tasks cleared",
-        description: "All your tasks have been deleted",
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to clear todos"))
-      toast({
-        title: "Error",
-        description: "Failed to clear tasks",
-        variant: "destructive",
-      })
-    }
-  }
-
   const reorderTodos = async (orderedIds: string[]) => {
     try {
       // Create a new array with the todos in the specified order
@@ -174,47 +156,18 @@ export function useCookieTodos() {
       const remainingTodos = todos.filter((todo) => !orderedIds.includes(todo.id))
 
       setTodos([...reorderedTodos, ...remainingTodos])
+
+      // In a real app, we would send to an API
+      // await fetch('/api/todos/reorder', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ orderedIds }),
+      // });
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to reorder todos"))
       toast({
         title: "Error",
         description: "Failed to reorder tasks",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const sortTodos = (by: "dueDate" | "priority" | "createdAt") => {
-    try {
-      const sortedTodos = [...todos].sort((a, b) => {
-        if (by === "dueDate") {
-          if (!a.dueDate) return 1
-          if (!b.dueDate) return -1
-          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-        }
-
-        if (by === "priority") {
-          const priorityValues = { high: 3, medium: 2, low: 1 }
-          const aValue = a.priority ? priorityValues[a.priority as keyof typeof priorityValues] || 0 : 0
-          const bValue = b.priority ? priorityValues[b.priority as keyof typeof priorityValues] || 0 : 0
-          return bValue - aValue
-        }
-
-        // Default to createdAt
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      })
-
-      setTodos(sortedTodos)
-
-      toast({
-        title: "Tasks sorted",
-        description: `Tasks sorted by ${by}`,
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to sort todos"))
-      toast({
-        title: "Error",
-        description: "Failed to sort tasks",
         variant: "destructive",
       })
     }
@@ -227,9 +180,6 @@ export function useCookieTodos() {
     addTodo,
     updateTodo,
     deleteTodo,
-    clearAllTodos,
     reorderTodos,
-    sortTodos,
-    stats,
   }
 }
