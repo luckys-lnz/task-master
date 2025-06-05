@@ -191,7 +191,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <Separator />
+                {/* <Separator /> */}
 
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-3">Badges</h3>
