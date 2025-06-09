@@ -1,17 +1,21 @@
 import { TaskForm } from '@/app/components/task-form'
-import { auth } from '@clerk/nextjs/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { tasks } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { format } from 'date-fns'
 
 export default async function TasksPage() {
-  const { userId } = await auth()
+  const session = await getServerSession(authOptions)
+  // Type assertion to include 'id' on user
+  const userId = session && (session.user as typeof session.user & { id?: string })?.id
+
   if (!userId) {
     return <div>Please sign in to view tasks</div>
   }
 
-  const userTasks = await db.select().from(tasks).where(eq(tasks.userId, userId))
+  const userTasks = await db.select().from(tasks).where(eq(tasks.user_id, userId))
 
   return (
     <div className="space-y-8">
@@ -42,16 +46,16 @@ export default async function TasksPage() {
                     {task.priority}
                   </span>
                   <span className={`px-2 py-1 rounded-full text-xs ${
-                    task.status === 'done' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' :
-                    task.status === 'in-progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' :
-                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100'
+                    task.is_completed
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100'
+                      : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'
                   }`}>
-                    {task.status}
+                    {task.is_completed ? 'done' : 'in-progress'}
                   </span>
                 </div>
-                {task.dueDate && (
+                {task.due_date && (
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Due: {format(new Date(task.dueDate), 'PPP')}
+                    Due: {format(new Date(task.due_date), 'PPP')}
                   </p>
                 )}
               </div>
@@ -61,4 +65,4 @@ export default async function TasksPage() {
       </div>
     </div>
   )
-} 
+}
