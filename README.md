@@ -1,10 +1,10 @@
 # Task Master
 
-A beautiful task management application built with Next.js, Clerk, and PostgreSQL.
+A beautiful task management application built with Next.js and PostgreSQL.
 
 ## Features
 
-- 🔐 Authentication with Clerk
+- 🔐 Authentication with Next-Auth
 - 📝 Task management
 - 🎨 Beautiful UI with dark mode support
 - 📱 Responsive design
@@ -18,7 +18,7 @@ A beautiful task management application built with Next.js, Clerk, and PostgreSQ
 - React 18
 - TypeScript
 - Tailwind CSS
-- Clerk Authentication
+- Next-Auth Authentication
 - PostgreSQL with Drizzle ORM
 - Sonner for toast notifications
 
@@ -36,12 +36,13 @@ npm install
 ```
 
 3. Set up environment variables
-Create a `.env.local` file with the following variables:
+Create a `.env` file with the following variables:
 ```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
-DATABASE_URL=postgresql://user:password@localhost:5432/taskmaster
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+DATABASE_URL=postgresql://tm@localhost:5432/taskmaster
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-nextauth-secret
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
 4. Set up the database
