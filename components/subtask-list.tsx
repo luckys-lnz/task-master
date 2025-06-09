@@ -5,13 +5,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Trash2, Plus } from "lucide-react"
-import type { SubTask } from "@/lib/types"
+import type { Subtask } from "@/lib/types"
 import { v4 as uuidv4 } from "uuid"
 
 interface SubtaskListProps {
-  subtasks: SubTask[]
+  subtasks: Subtask[]
   onToggle: (id: string, completed: boolean) => void
-  onAdd: (subtask: SubTask) => void
+  onAdd: (subtask: Subtask) => void
   onDelete: (id: string) => void
 }
 
