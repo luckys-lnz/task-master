@@ -144,7 +144,6 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
               <Label
                 htmlFor="avatar-upload"
                 className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer shadow-md hover:bg-primary/90 transition-colors"
-                disabled={isUploading}
               >
                 {isUploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -217,7 +216,7 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
           </div>
         </CardContent>
         <CardFooter className="border-t bg-muted/50 flex justify-between">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading || isUploading}>
+          <Button type="button" onClick={onCancel} disabled={isLoading || isUploading}>
             Cancel
           </Button>
           <Button type="submit" disabled={isLoading || isUploading}>
