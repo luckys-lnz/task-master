@@ -6,13 +6,14 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DayPicker } from "react-day-picker";
+import { TaskPriority, TaskPriorityType } from "@/lib/db/schema";
 
 export function TaskForm() {
   const router = useRouter();
   const { data: session } = useSession();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("low");
+  const [priority, setPriority] = useState<TaskPriorityType>("LOW");
   const [status, setStatus] = useState("todo");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +42,7 @@ export function TaskForm() {
           description,
           priority,
           status,
+          substasks: [],
           dueDate: dueDate?.toISOString(),
         }),
       });
@@ -59,7 +61,7 @@ export function TaskForm() {
       // Reset form
       setTitle("");
       setDescription("");
-      setPriority("low");
+      setPriority("LOW");
       setStatus("todo");
       setDueDate(undefined);
       router.refresh();
@@ -102,12 +104,14 @@ export function TaskForm() {
           <select
             id="priority"
             value={priority}
-            onChange={(e) => setPriority(e.target.value)}
+            onChange={(e) => setPriority(e.target.value as TaskPriorityType)}
             className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:border-gray-700 dark:text-white"
           >
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
+            {Object.entries(TaskPriority).map(([key, value]) => (
+              <option key={key} value={value}>
+                {key.charAt(0) + key.slice(1).toLowerCase()}
+              </option>
+            ))}
           </select>
         </div>
 
