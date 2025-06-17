@@ -1,14 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import type { Todo } from "@/lib/types"
-import { useToast } from "@/hooks/use-toast"
+// Update the path below to the actual location of your types file
+import type { Task } from "../lib/types"
+// Update the path below if your use-toast hook is in a different location
+import { useToast } from "../hooks/use-toast"
 
 // For offline support
 const STORAGE_KEY = "taskmaster-todos"
 
 export function useTodos() {
-  const [todos, setTodos] = useState<Todo[]>([])
+  const [todos, setTodos] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const { toast } = useToast()
@@ -75,7 +77,7 @@ export function useTodos() {
     }
   }, [todos, isLoading])
 
-  const addTodo = async (todo: Todo) => {
+  const addTodo = async (todo: Task) => {
     try {
       // In a real app, we would send to an API
       // const response = await fetch('/api/todos', {
@@ -101,7 +103,7 @@ export function useTodos() {
     }
   }
 
-  const updateTodo = async (id: string, updates: Partial<Todo>) => {
+  const updateTodo = async (id: string, updates: Partial<Task>) => {
     try {
       // In a real app, we would send to an API
       // const response = await fetch(`/api/todos/${id}`, {
@@ -150,7 +152,7 @@ export function useTodos() {
       // Create a new array with the todos in the specified order
       const reorderedTodos = orderedIds
         .map((id) => todos.find((todo) => todo.id === id))
-        .filter((todo): todo is Todo => todo !== undefined)
+        .filter((todo): todo is Task => todo !== undefined)
 
       // Add any todos that weren't in the orderedIds array
       const remainingTodos = todos.filter((todo) => !orderedIds.includes(todo.id))
