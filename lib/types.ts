@@ -1,18 +1,19 @@
 export interface Task {
-  id: string
-  title: string
-  description: string
-  category: string
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  tags: string[]
-  dueDate: string
-  dueTime: string
-  completed: boolean
-  notes: string
-  subtasks: Subtask[]
-  attachments?: string[] // URLs to uploaded files
-  createdAt: string
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  tags: string[];
+  dueDate: string;
+  dueTime: string;
+  completed: boolean;
+  notes: string;
+  subtasks: Subtask[];
+  attachments?: string[];
+  createdAt: string;
 }
+
 
 export interface Subtask {
   id: string
