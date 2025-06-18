@@ -59,9 +59,10 @@ export function TodoFilter({ onFilterChange, currentFilter }: TodoFilterProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Priorities</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="LOW">Low</SelectItem>
+              <SelectItem value="MEDIUM">Medium</SelectItem>
+              <SelectItem value="HIGH">High</SelectItem>
+              <SelectItem value="URGENT">Urgent</SelectItem>
             </SelectContent>
           </Select>
         </div>
