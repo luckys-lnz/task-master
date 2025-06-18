@@ -1,66 +1,28 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tasks, subtasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import * as z from "zod";
+import { authOptions } from "@/lib/auth";
+import { z } from "zod";
 
-const taskUpdateSchema = z.object({
-  title: z.string().min(1, "Title is required").optional(),
-  description: z.string().optional(),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
-  tags: z.array(z.string()).optional(),
-  due_date: z.string().optional(),
-  is_completed: z.boolean().optional(),
+const updateTaskSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  category: z.string(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
+  tags: z.array(z.string()),
+  dueTime: z.string(),
+  notes: z.string(),
   subtasks: z.array(z.object({
-    id: z.string().optional(), // For existing subtasks
+    id: z.string(),
     title: z.string(),
-    is_completed: z.boolean()
-  })).optional(),
-});
-
-// GET /api/tasks/[id] - Get a single task
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const taskWithSubtasks = await db.query.tasks.findFirst({
-      where: and(
-        eq(tasks.id, params.id),
-        eq(tasks.user_id, session.user.id)
-      ),
-      with: {
-        subtasks: true
-      }
-    });
-
-    if (!taskWithSubtasks) {
-      return NextResponse.json(
-        { error: "Task not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(taskWithSubtasks);
-  } catch (error) {
-    console.error("Error fetching task:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
+    completed: z.boolean(),
+    task_id: z.string().optional() // Made task_id optional since we'll set it server-side
+  })),
+  completed: z.boolean().optional(),
+  dueDate: z.string().optional()
+}).partial();
 
 // PATCH /api/tasks/[id] - Update a task
 export async function PATCH(
@@ -69,77 +31,72 @@ export async function PATCH(
 ) {
   try {
     const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const json = await req.json();
-    const body = taskUpdateSchema.parse(json);
+    const body = await req.json();
+    console.log("Received update data:", body);
 
-    // First verify the task belongs to the user
-    const existingTask = await db.query.tasks.findFirst({
-      where: and(
-        eq(tasks.id, params.id),
-        eq(tasks.user_id, session.user.id)
-      )
-    });
+    // Add task_id to subtasks before validation
+    if (body.subtasks) {
+      interface SubtaskInput {
+        id: string;
+        title: string;
+        completed: boolean;
+        task_id?: string;
+      }
 
-    if (!existingTask) {
-      return NextResponse.json(
-        { error: "Task not found" },
-        { status: 404 }
-      );
+
+
+      body.subtasks = (body.subtasks as SubtaskInput[]).map((subtask: SubtaskInput) => ({
+        ...subtask,
+        task_id: params.id
+      }));
     }
 
-    // Update the task
-    const [updatedTask] = await db
+    const validatedData = updateTaskSchema.parse(body);
+    console.log("Validated data:", validatedData);
+
+    await db
       .update(tasks)
       .set({
-        ...body,
-        due_date: body.due_date ? new Date(body.due_date) : undefined,
-        updated_at: new Date(),
+        ...validatedData,
+        updated_at: new Date()
       })
-      .where(eq(tasks.id, params.id))
+      .where(and(eq(tasks.id, params.id), eq(tasks.user_id, userId)))
       .returning();
 
-    // Handle subtasks if provided
-    if (body.subtasks) {
-      // Delete existing subtasks
-      await db
-        .delete(subtasks)
-        .where(eq(subtasks.task_id, params.id));
-
-      // Create new subtasks
-      await db.insert(subtasks).values(
-        body.subtasks.map(st => ({
-          task_id: params.id,
-          title: st.title,
-          is_completed: st.is_completed
-        }))
-      );
+    // Handle subtasks update if present
+    if (validatedData.subtasks) {
+      // Remove old subtasks for this task
+      await db.delete(subtasks).where(eq(subtasks.task_id, params.id));
+      // Insert new subtasks
+      if (validatedData.subtasks.length > 0) {
+        await db.insert(subtasks).values(validatedData.subtasks.map(st => ({
+          ...st,
+          task_id: params.id
+        })));
+      }
     }
 
-    // Return updated task with subtasks
-    const taskWithSubtasks = await db.query.tasks.findFirst({
+    const updatedTask = await db.query.tasks.findFirst({
       where: eq(tasks.id, params.id),
-      with: {
-        subtasks: true
-      }
+      with: { subtasks: true }
     });
-
-    return NextResponse.json(taskWithSubtasks);
+    return NextResponse.json(updatedTask);
   } catch (error) {
-    console.error("Error updating task:", error);
+    console.error("Task update error:", error);
+    
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.errors },
+        { error: "Validation error", details: error.errors },
         { status: 400 }
       );
     }
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -149,48 +106,33 @@ export async function PATCH(
 
 // DELETE /api/tasks/[id] - Delete a task
 export async function DELETE(
-  req: Request,
+  _: Request,
   { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // First verify the task belongs to the user
-    const existingTask = await db.query.tasks.findFirst({
-      where: and(
-        eq(tasks.id, params.id),
-        eq(tasks.user_id, session.user.id)
-      )
-    });
+    // Optionally, delete subtasks first if not using ON DELETE CASCADE
+    await db.delete(subtasks).where(eq(subtasks.task_id, params.id));
 
-    if (!existingTask) {
-      return NextResponse.json(
-        { error: "Task not found" },
-        { status: 404 }
-      );
-    }
-
-    // Delete the task (subtasks will be deleted automatically due to ON DELETE CASCADE)
-    await db
+    // Delete the task
+    const deleted = await db
       .delete(tasks)
-      .where(eq(tasks.id, params.id));
+      .where(and(eq(tasks.id, params.id), eq(tasks.user_id, userId)))
+      .returning();
 
-    return NextResponse.json(
-      { message: "Task deleted successfully" },
-      { status: 200 }
-    );
+    if (!deleted.length) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting task:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    console.error("Task delete error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-} 
+}
