@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import type { Task } from "@/lib/types"
 import { TagInput } from "@/components/tag-input"
 import { RichTextEditor } from "@/components/rich-text-editor"
+import { v4 as uuidv4 } from 'uuid';
 
 interface TaskEditorProps {
   task?: Task
@@ -28,26 +29,28 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
   const [title, setTitle] = useState(task?.title || "")
   const [description, setDescription] = useState(task?.description || "")
   const [category, setCategory] = useState(task?.category || "")
-  const [priority, setPriority] = useState(task?.priority || "medium")
+  const [priority, setPriority] = useState(task?.priority || "MEDIUM")
   const [tags, setTags] = useState<string[]>(task?.tags || [])
   const [dueDate, setDueDate] = useState<Date | undefined>(task?.dueDate ? new Date(task.dueDate) : undefined)
   const [dueTime, setDueTime] = useState(task?.dueTime || "")
   const [notes, setNotes] = useState(task?.notes || "")
-  const [subtasks, setSubtasks] = useState<Array<{ id?: string; title: string; completed: boolean }>>(
-    task?.subtasks?.map(s => ({ id: s.id, title: s.title, completed: s.completed })) || []
-  )
+  const [subtasks, setSubtasks] = useState<Array<{
+    id: string;
+    title: string;
+    is_completed: boolean;
+  }>>([])
   const [attachments, setAttachments] = useState<File[]>([])
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("")
 
   const handleAddSubtask = () => {
     if (newSubtaskTitle.trim()) {
-      setSubtasks([...subtasks, { title: newSubtaskTitle.trim(), completed: false }])
+      setSubtasks([...subtasks, { id: uuidv4(), title: newSubtaskTitle.trim(), is_completed: false }])
       setNewSubtaskTitle("")
     }
   }
 
-  const handleRemoveSubtask = (index: number) => {
-    setSubtasks(subtasks.filter((_, i) => i !== index))
+  const handleRemoveSubtask = (id: string) => {
+    setSubtasks(subtasks.filter(st => st.id !== id))
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,10 +73,11 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
       dueDate: dueDate?.toISOString(),
       dueTime,
       notes,
-      subtasks: subtasks.map(s => ({
-        id: s.id || "",
-        title: s.title,
-        completed: s.completed
+      subtasks: subtasks.map(st => ({
+        id: st.id,
+        title: st.title,
+        completed: st.is_completed,
+        task_id: task?.id ?? ""
       })),
       attachments: undefined
     })
@@ -127,16 +131,16 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
               <Label htmlFor="priority">Priority</Label>
               <Select
                 value={priority}
-                onValueChange={(v) => setPriority(v as 'low' | 'medium' | 'high' | 'urgent')}
+                onValueChange={(v) => setPriority(v as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT')}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="URGENT">Urgent</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -190,15 +194,18 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                 </Button>
               </div>
               <div className="space-y-2">
-                {subtasks.map((subtask, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                {subtasks.map((subtask) => (
+                  <div key={subtask.id} className="flex items-center gap-2">
                     <Input
                       type="checkbox"
-                      checked={subtask.completed}
+                      checked={subtask.is_completed}
                       onChange={() => {
                         const newSubtasks = [...subtasks]
-                        newSubtasks[index].completed = !newSubtasks[index].completed
-                        setSubtasks(newSubtasks)
+                        const idx = newSubtasks.findIndex(st => st.id === subtask.id)
+                        if (idx !== -1) {
+                          newSubtasks[idx].is_completed = !newSubtasks[idx].is_completed
+                          setSubtasks(newSubtasks)
+                        }
                       }}
                       className="w-4 h-4"
                     />
@@ -207,7 +214,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleRemoveSubtask(index)}
+                      onClick={() => handleRemoveSubtask(subtask.id)}
                     >
                       <X className="h-4 w-4" />
                     </Button>
