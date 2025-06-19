@@ -3,15 +3,22 @@ export interface Task {
   title: string;
   description: string;
   category: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  priority: "LOW"| "MEDIUM"| "HIGH"| "URGENT";
   tags: string[];
   dueDate: string;
   dueTime: string;
   completed: boolean;
   notes: string;
-  subtasks: Subtask[];
+  subtasks?: {
+    id: string;
+    title: string;
+    completed: boolean;
+    task_id: string;
+  }[];
   attachments?: string[];
   createdAt: string;
+  updatedAt?: string;
+  is_completed: boolean;
 }
 
 
