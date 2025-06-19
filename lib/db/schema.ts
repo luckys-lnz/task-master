@@ -25,25 +25,35 @@ export const users = pgTable("users", {
   created_at: timestamp("created_at").defaultNow().notNull()
 });
 
-export const tasks = pgTable("tasks", {
+export const tasks = pgTable('tasks', {
   id: uuid("id").primaryKey().defaultRandom(),
   user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
+  notes: text("notes"), 
   due_date: timestamp("due_date", { mode: "date" }),
-  priority: text("priority").notNull().default("LOW"),
+  due_time: text("due_time"),
+  priority: text("priority", { enum: ["LOW", "MEDIUM", "HIGH", "URGENT"] }).notNull().default("LOW"),
+  category: text("category"),
   tags: text("tags").array(),
   position: text("position"),
-  is_completed: boolean("is_completed").default(false),
+  is_completed: boolean('is_completed').default(false),
+  completed: boolean('completed').default(false),
+  attachments: text("attachments").array(),
   created_at: timestamp("created_at").defaultNow().notNull(),
-  updated_at: timestamp("updated_at").defaultNow().notNull()
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const subtasks = pgTable("subtasks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  task_id: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
-  is_completed: boolean("is_completed").default(false)
+export const subtasks = pgTable('subtasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  is_completed: boolean('is_completed').default(false),
+  completed: boolean('completed').default(false),
+  task_id: uuid('task_id')
+    .notNull()
+    .references(() => tasks.id, { onDelete: 'cascade' }),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
 // Define relations
@@ -51,19 +61,15 @@ export const usersRelations = relations(users, ({ many }) => ({
   tasks: many(tasks)
 }));
 
-export const tasksRelations = relations(tasks, ({ one, many }) => ({
-  user: one(users, {
-    fields: [tasks.user_id],
-    references: [users.id],
-  }),
-  subtasks: many(subtasks)
+export const tasksRelations = relations(tasks, ({ many }) => ({
+  subtasks: many(subtasks),
 }));
 
 export const subtasksRelations = relations(subtasks, ({ one }) => ({
   task: one(tasks, {
     fields: [subtasks.task_id],
     references: [tasks.id],
-  })
+  }),
 }));
 
 // Auth tables
