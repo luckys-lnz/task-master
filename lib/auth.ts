@@ -54,9 +54,11 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const user = await db.query.users.findFirst({
-            where: eq(users.email, credentials.email)
-          });
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, credentials.email))
+            .limit(1);
 
           if (!user?.hashed_password) {
             return null;
@@ -106,10 +108,11 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         try {
-          // Check if user exists
-          const existingUser = await db.query.users.findFirst({
-            where: eq(users.email, user.email!)
-          });
+          const [existingUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, user.email!))
+            .limit(1);
           
           if (!existingUser && user.email) {
             // Create new user if doesn't exist
@@ -132,4 +135,6 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development'
 };
 
-export default NextAuth(authOptions);
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
+export const { auth } = NextAuth(authOptions);
