@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,26 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isExpiringSoon, setIsExpiringSoon] = useState(false);
+  const [isOverdue, setIsOverdue] = useState(false);
+
+  useEffect(() => {
+    if (task.dueDate && !task.completed) {
+      const dueDate = new Date(task.dueDate);
+      if (task.dueTime) {
+        const [hours, minutes] = task.dueTime.split(":").map(Number);
+        dueDate.setHours(hours, minutes, 0, 0);
+      } else {
+        dueDate.setHours(23, 59, 59, 999);
+      }
+      const now = new Date();
+      setIsOverdue(dueDate < now);
+      setIsExpiringSoon(!isOverdue && dueDate.getTime() - now.getTime() < 24 * 60 * 60 * 1000);
+    } else {
+      setIsOverdue(false);
+      setIsExpiringSoon(false);
+    }
+  }, [task]);
 
   const handleStatusChange = async (checked: boolean) => {
     setIsLoading(true);
@@ -77,13 +97,19 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
         </CardContent>
       )}
       <CardFooter className="pt-0">
-        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+        <div className={`flex items-center space-x-2 text-sm text-muted-foreground ${isOverdue ? 'text-red-600 dark:text-red-400 font-semibold' : isExpiringSoon ? 'text-yellow-600 dark:text-yellow-400 font-semibold' : ''}`}>
           <Icons.calendar className="h-4 w-4" />
           <span>
-            {task.dueDate
-              ? format(new Date(task.dueDate), "PPP")
-              : "No due date"}
+            {task.dueDate ? format(new Date(task.dueDate), "PPP") : "No due date"}
           </span>
+          {task.dueTime && (
+            <>
+              <Icons.clock className="h-4 w-4 ml-2" />
+              <span>{task.dueTime}</span>
+            </>
+          )}
+          {isOverdue && <span className="ml-2">(Overdue)</span>}
+          {!isOverdue && isExpiringSoon && <span className="ml-2">(Expiring soon)</span>}
         </div>
       </CardFooter>
     </Card>
