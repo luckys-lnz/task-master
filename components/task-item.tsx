@@ -12,9 +12,10 @@ import type { Task, Subtask as BaseSubtask } from "@/lib/types"
 type Subtask = BaseSubtask & { task_id?: string }
 import { TaskEditor } from "@/components/task-editor"
 import { SubtaskList } from "@/components/subtask-list"
-import { Calendar, Clock, Trash2, Edit, ChevronDown, ChevronUp, GripVertical, AlarmClock, Plus, X } from "lucide-react"
+import { Calendar, Clock, Trash2, Edit, ChevronDown, ChevronUp, GripVertical, Plus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "./ui/input"
+
 
 interface TodoItemProps {
   todo: Task
@@ -23,12 +24,12 @@ interface TodoItemProps {
 }
 
 export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false) // Controls the main collapsible (for subtasks and description if present)
   const [isEditing, setIsEditing] = useState(false)
   const [isExpired, setIsExpired] = useState(false)
-  const [isSubtasksOpen, setIsSubtasksOpen] = useState(false)
+  // const [isSubtasksOpen, setIsSubtasksOpen] = useState(false) // REMOVED: This state is no longer needed
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("")
-  const { toast } = useToast()
+  useToast()
 
   // Check if task is expired
   useEffect(() => {
@@ -52,12 +53,48 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
         }, timeUntilExpiry)
 
         return () => clearTimeout(expiryTimeout)
+      } else {
+        return undefined
       }
     } else {
       setIsExpired(false)
+      return undefined
     }
-    return undefined
   }, [todo])
+
+  // Notification for due tasks
+  useEffect(() => {
+    if (!todo.dueDate || todo.completed) return
+
+    // Request permission if not already granted
+    if (Notification.permission !== "granted") {
+      Notification.requestPermission()
+    }
+
+    const now = new Date()
+    const due = new Date(todo.dueDate)
+    if (todo.dueTime) {
+      const [h, m] = todo.dueTime.split(":").map(Number)
+      due.setHours(h, m, 0, 0)
+    } else {
+      due.setHours(23, 59, 59, 999)
+    }
+    const diff = due.getTime() - now.getTime()
+
+    // If due in the future and within 15 minutes, schedule notification
+    if (diff > 0 && diff <= 15 * 60 * 1000) {
+      const timeout = setTimeout(() => {
+        if (Notification.permission === "granted") {
+          new Notification("Task Due Soon!", {
+            body: `${todo.title} is due at ${todo.dueTime || format(due, "p")}`,
+          })
+        }
+      }, diff)
+
+      return () => clearTimeout(timeout)
+    }
+    return undefined;
+  }, [todo.dueDate, todo.dueTime, todo.completed, todo.title])
 
   const priorityColors = {
     LOW: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
@@ -65,16 +102,15 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
     HIGH: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
   }
 
+  // The SubtaskList component itself handles adding/toggling/deleting.
+  // These handlers are passed down to SubtaskList.
   const handleSubtaskToggle = (subtaskId: string, completed: boolean) => {
-    interface UpdatedSubtask extends Subtask {
-      completed: boolean
-      task_id: string
-    }
-
-    const updatedSubtasks: UpdatedSubtask[] = (todo.subtasks ?? []).map((subtask: Subtask): UpdatedSubtask =>
+    // Note: The `task_id` property might not be strictly necessary here if it's always `todo.id`
+    // but keeping it as it was in the original logic.
+    const updatedSubtasks = (todo.subtasks ?? []).map((subtask: BaseSubtask) =>
       subtask.id === subtaskId
-        ? { ...subtask, completed, task_id: (subtask as any).task_id ?? todo.id }
-        : { ...subtask, task_id: (subtask as any).task_id ?? todo.id }
+        ? { ...subtask, completed, task_id: todo.id } // Ensure task_id is set
+        : { ...subtask, task_id: todo.id } // Ensure task_id is set for others too
     )
     onUpdate(todo.id, { subtasks: updatedSubtasks })
   }
@@ -82,106 +118,49 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
   const handleSubtaskAdd = (subtask: Subtask) => {
     onUpdate(todo.id, {
       subtasks: [
-        ...(todo.subtasks || []).map((st) => ({
+        ...(todo.subtasks || []).map(st => ({
           ...st,
-          task_id: st.task_id ? st.task_id : todo.id,
+          task_id: todo.id // Ensure task_id is always set
         })),
-        { ...subtask, task_id: subtask.task_id ? subtask.task_id : todo.id },
+        { ...subtask, task_id: todo.id }, // Ensure task_id is set for new subtask
       ],
     })
   }
 
   const handleSubtaskDelete = (subtaskId: string) => {
     onUpdate(todo.id, {
-      subtasks: (todo.subtasks ?? []).filter((subtask: Subtask) => subtask.id !== subtaskId),
+      subtasks: (todo.subtasks ?? []).filter((subtask: BaseSubtask) => subtask.id !== subtaskId),
     })
   }
 
-  const handleSnooze = () => {
-    // Snooze options: 1 hour, 3 hours, tomorrow, next week
-    const now = new Date()
+  // NOTE: The `addSubtask`, `toggleSubtaskCompletion`, `removeSubtask` functions
+  // below are redundant given `SubtaskList` already handles these actions
+  // via `handleSubtaskToggle`, `handleSubtaskAdd`, `handleSubtaskDelete`.
+  // I'm keeping them commented out but will remove the UI section that called them.
 
-    const options = [
-      {
-        label: "+1 hour",
-        value: () => {
-          const date = new Date(now)
-          date.setHours(date.getHours() + 1)
-          return date
-        },
-      },
-      {
-        label: "+3 hours",
-        value: () => {
-          const date = new Date(now)
-          date.setHours(date.getHours() + 3)
-          return date
-        },
-      },
-      {
-        label: "Tomorrow",
-        value: () => {
-          const date = new Date(now)
-          date.setDate(date.getDate() + 1)
-          date.setHours(9, 0, 0, 0) // 9 AM tomorrow
-          return date
-        },
-      },
-      {
-        label: "Next week",
-        value: () => {
-          const date = new Date(now)
-          date.setDate(date.getDate() + 7)
-          date.setHours(9, 0, 0, 0) // 9 AM next week
-          return date
-        },
-      },
-    ]
+  // const addSubtask = () => {
+  //   if (!newSubtaskTitle.trim()) return
 
-    // Default to tomorrow
-    const dueDate = options[2].value()
+  //   const newSubtask = {
+  //     id: crypto.randomUUID(),
+  //     title: newSubtaskTitle,
+  //     completed: false,
+  //     task_id: todo.id,
+  //   }
+  //   handleSubtaskAdd(newSubtask); // Use the existing handler
+  //   setNewSubtaskTitle("")
+  // }
 
-    onUpdate(todo.id, {
-      dueDate: dueDate.toISOString(),
-      dueTime: `${dueDate.getHours().toString().padStart(2, "0")}:${dueDate.getMinutes().toString().padStart(2, "0")}`,
-    })
+  // const toggleSubtaskCompletion = (subtaskId: string) => {
+  //   const subtaskToToggle = todo.subtasks?.find(st => st.id === subtaskId);
+  //   if (subtaskToToggle) {
+  //     handleSubtaskToggle(subtaskId, !subtaskToToggle.completed); // Use existing handler
+  //   }
+  // }
 
-    toast({
-      title: "Task snoozed",
-      description: `Task "${todo.title}" snoozed until tomorrow at 9 AM`,
-    })
-  }
-
-  const addSubtask = () => {
-    if (!newSubtaskTitle.trim()) return
-
-    const newSubtask = {
-      id: crypto.randomUUID(),
-      title: newSubtaskTitle,
-      completed: false,
-      task_id: todo.id,
-    }
-
-    onUpdate(todo.id, {
-      ...todo,
-      subtasks: [...(todo.subtasks || []), newSubtask],
-    })
-
-    setNewSubtaskTitle("")
-  }
-
-  const toggleSubtaskCompletion = (subtaskId: string) => {
-    const updatedSubtasks = todo.subtasks?.map((st) =>
-      st.id === subtaskId ? { ...st, completed: !st.completed } : st,
-    )
-
-    onUpdate(todo.id, { ...todo, subtasks: updatedSubtasks })
-  }
-
-  const removeSubtask = (subtaskId: string) => {
-    const updatedSubtasks = todo.subtasks?.filter((st) => st.id !== subtaskId)
-    onUpdate(todo.id, { ...todo, subtasks: updatedSubtasks })
-  }
+  // const removeSubtask = (subtaskId: string) => {
+  //   handleSubtaskDelete(subtaskId); // Use existing handler
+  // }
 
   if (isEditing) {
     return (
@@ -220,6 +199,24 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
                 {todo.description && (
                   <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{todo.description}</p>
                 )}
+
+                {/* DUE DATE & TIME DISPLAY - ALWAYS VISIBLE */}
+                {todo.dueDate && (
+                  <div className="flex items-center text-sm mt-2 text-muted-foreground">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    <span>
+                      Due date: {format(new Date(todo.dueDate), "MMM d, yyyy")}
+                    </span>
+                    {todo.dueTime && (
+                      <>
+                        <Clock className="h-4 w-4 ml-4 mr-1" />
+                        <span>
+                          Due time: {todo.dueTime}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
                 {todo.category && <Badge variant="outline">{todo.category}</Badge>}
@@ -237,31 +234,11 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
               </div>
             </div>
 
-            {(todo.dueDate || (todo.subtasks && todo.subtasks.length > 0)) && (
+            {/* This collapsible block handles subtasks and now serves as the single source for them */}
+            {(todo.subtasks && todo.subtasks.length > 0) && ( // Only show collapsible if there are subtasks
               <div className="mt-4">
                 <Collapsible open={isOpen} onOpenChange={setIsOpen}>
                   <div className="flex items-center justify-between">
-                    {todo.dueDate && (
-                      <div
-                        className={`flex items-center text-sm ${isExpired ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}
-                      >
-                        <Calendar className="h-4 w-4 mr-1" />
-                        <span>Due: {format(new Date(todo.dueDate), "MMM d, yyyy")}</span>
-                        {todo.dueTime && (
-                          <>
-                            <Clock className="h-4 w-4 ml-2 mr-1" />
-                            <span>{todo.dueTime}</span>
-                          </>
-                        )}
-                        {isExpired && !todo.completed && (
-                          <Button variant="ghost" size="sm" onClick={handleSnooze} className="ml-2">
-                            <AlarmClock className="h-4 w-4 mr-1" />
-                            Snooze
-                          </Button>
-                        )}
-                      </div>
-                    )}
-
                     {(todo.subtasks ?? []).length > 0 && (
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
@@ -275,10 +252,41 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
                   </div>
 
                   <CollapsibleContent className="mt-4">
+                    {/* Add new subtask input within this collapsible */}
+                    <div className="flex gap-2 mb-4"> {/* Added margin-bottom for spacing */}
+                      <Input
+                        placeholder="Add a subtask"
+                        value={newSubtaskTitle}
+                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            // Call handleSubtaskAdd from within this component
+                            handleSubtaskAdd({
+                                id: crypto.randomUUID(),
+                                title: newSubtaskTitle,
+                                completed: false,
+                                task_id: todo.id,
+                            });
+                            setNewSubtaskTitle("");
+                          }
+                        }}
+                      />
+                      <Button size="sm" onClick={() => {
+                        handleSubtaskAdd({
+                            id: crypto.randomUUID(),
+                            title: newSubtaskTitle,
+                            completed: false,
+                            task_id: todo.id,
+                        });
+                        setNewSubtaskTitle("");
+                      }}>
+                        <Plus size={16} />
+                      </Button>
+                    </div>
                     <SubtaskList
                       subtasks={todo.subtasks ?? []}
                       onToggle={handleSubtaskToggle}
-                      onAdd={handleSubtaskAdd}
+                      onAdd={handleSubtaskAdd} // This might be redundant if we add input here
                       onDelete={handleSubtaskDelete}
                     />
                   </CollapsibleContent>
@@ -299,66 +307,8 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
         </Button>
       </CardFooter>
 
-      {/* Subtasks Section */}
-      <div className="mt-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsSubtasksOpen(!isSubtasksOpen)}
-          className="w-full flex justify-between items-center"
-        >
-          <span>Subtasks ({todo.subtasks?.length || 0})</span>
-          {isSubtasksOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </Button>
-
-        {isSubtasksOpen && (
-          <div className="mt-2 space-y-2">
-            {/* Add new subtask input */}
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add a subtask"
-                value={newSubtaskTitle}
-                onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    addSubtask()
-                  }
-                }}
-              />
-              <Button size="sm" onClick={addSubtask}>
-                <Plus size={16} />
-              </Button>
-            </div>
-
-            {/* Subtasks list */}
-            <div className="space-y-2">
-              {todo.subtasks?.map((subtask) => (
-                <div
-                  key={subtask.id}
-                  className="flex items-center justify-between gap-2 p-2 bg-secondary/50 rounded"
-                >
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={subtask.completed}
-                      onCheckedChange={() => toggleSubtaskCompletion(subtask.id)}
-                    />
-                    <span className={subtask.completed ? "line-through text-muted-foreground" : ""}>
-                      {subtask.title}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeSubtask(subtask.id)}
-                  >
-                    <X size={16} />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* REMOVED: The entire "Subtasks Section" that was at the very bottom */}
+      {/* because its functionality is now integrated into the main collapsible */}
     </Card>
   )
 }
