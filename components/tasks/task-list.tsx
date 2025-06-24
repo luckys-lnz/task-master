@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Icons } from "@/components/ui/icons";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationService } from "@/lib/services/notifications";
 
 export function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -17,6 +18,13 @@ export function TaskList() {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  useEffect(() => {
+    const notificationService = NotificationService.getInstance();
+    notificationService.requestNotificationPermission();
+    const cleanup = notificationService.startMonitoring(tasks);
+    return () => cleanup();
+  }, [tasks]);
 
   const fetchTasks = async () => {
     try {
