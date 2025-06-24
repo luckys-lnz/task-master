@@ -1,12 +1,11 @@
 import { toast } from "@/hooks/use-toast"
-import type { Todo } from "@/lib/types"
+import type { Task } from "@/lib/types"
 
 type NotificationType = 'upcoming' | 'due-today' | 'overdue'
 
 export class NotificationService {
   private static instance: NotificationService
   private notifications: Map<string, NodeJS.Timeout> = new Map()
-  private reminderIntervals: Map<string, NodeJS.Timeout> = new Map()
 
   private constructor() {}
 
@@ -17,7 +16,7 @@ export class NotificationService {
     return NotificationService.instance
   }
 
-  private async checkTasks(todos: Todo[]) {
+  private async checkTasks(todos: Task[]) {
     const now = new Date()
     
     todos.forEach(todo => {
@@ -62,7 +61,7 @@ export class NotificationService {
     return dueDate > now && dueDate <= tomorrow
   }
 
-  private notifyTask(todo: Todo, type: NotificationType) {
+  private notifyTask(todo: Task, type: NotificationType) {
     const notificationId = `${todo.id}-${type}`
     const notificationConfig = {
       overdue: {
@@ -105,7 +104,7 @@ export class NotificationService {
     }, 24 * 60 * 60 * 1000)) // Clear after 24 hours
   }
 
-  public startMonitoring(todos: Todo[]) {
+  public startMonitoring(todos: Task[]) {
     // Check immediately
     this.checkTasks(todos)
 
