@@ -1,11 +1,12 @@
 import { toast } from "@/hooks/use-toast"
 import type { Task } from "@/lib/types"
+import { format } from "date-fns"
 
-type NotificationType = 'upcoming' | 'due-today' | 'overdue'
 
 export class NotificationService {
   private static instance: NotificationService
   private notifications: Map<string, NodeJS.Timeout> = new Map()
+  private scheduled: Map<string, NodeJS.Timeout[]> = new Map()
 
   private constructor() {}
 
@@ -16,101 +17,120 @@ export class NotificationService {
     return NotificationService.instance
   }
 
-  private async checkTasks(todos: Task[]) {
+  private clearScheduled(taskId: string) {
+    const timeouts = this.scheduled.get(taskId)
+    if (timeouts) {
+      timeouts.forEach(clearTimeout)
+      this.scheduled.delete(taskId)
+    }
+  }
+
+  private scheduleNotificationsForTask(todo: Task) {
+    if (todo.completed || !todo.dueDate) return
+    this.clearScheduled(todo.id)
+
+    const dueDate = new Date(todo.dueDate)
+    if (todo.dueTime) {
+      const [hours, minutes] = todo.dueTime.split(":").map(Number)
+      dueDate.setHours(hours, minutes, 0, 0)
+    } else {
+      dueDate.setHours(23, 59, 59, 999)
+    }
     const now = new Date()
-    
-    todos.forEach(todo => {
-      if (todo.completed || !todo.dueDate) return
+    const timeToDue = dueDate.getTime() - now.getTime()
+    const timeTo30MinBefore = timeToDue - 30 * 60 * 1000
 
-      const dueDate = new Date(todo.dueDate)
-      if (todo.dueTime) {
-        const [hours, minutes] = todo.dueTime.split(":").map(Number)
-        dueDate.setHours(hours, minutes)
-      } else {
-        dueDate.setHours(23, 59, 59, 999)
-      }
+    const timeouts: NodeJS.Timeout[] = []
 
-      // Check for overdue tasks
-      if (dueDate < now && !this.notifications.has(`${todo.id}-overdue`)) {
-        this.notifyTask(todo, 'overdue')
-      }
-      // Check for tasks due today
-      else if (this.isDueToday(dueDate) && !this.notifications.has(`${todo.id}-due-today`)) {
-        this.notifyTask(todo, 'due-today')
-      }
-      // Check for upcoming tasks (within next 24 hours)
-      else if (this.isUpcoming(dueDate) && !this.notifications.has(`${todo.id}-upcoming`)) {
-        this.notifyTask(todo, 'upcoming')
-      }
-    })
+    // 30 minutes before due
+    if (timeTo30MinBefore > 0) {
+      timeouts.push(setTimeout(() => {
+        this.notifyTodoistStyle(todo, "due-soon")
+      }, timeTo30MinBefore))
+    }
+    // At due time
+    if (timeToDue > 0) {
+      timeouts.push(setTimeout(() => {
+        this.notifyTodoistStyle(todo, "due-now")
+      }, timeToDue))
+    }
+    // Overdue (if not completed)
+    if (timeToDue < 0 && !todo.completed) {
+      this.notifyTodoistStyle(todo, "overdue")
+    } else {
+      // Schedule overdue notification right after due time
+      timeouts.push(setTimeout(() => {
+        this.notifyTodoistStyle(todo, "overdue")
+      }, Math.max(timeToDue, 0) + 1000))
+    }
+    this.scheduled.set(todo.id, timeouts)
   }
 
-  private isDueToday(dueDate: Date): boolean {
-    const today = new Date()
-    return (
-      dueDate.getDate() === today.getDate() &&
-      dueDate.getMonth() === today.getMonth() &&
-      dueDate.getFullYear() === today.getFullYear()
-    )
+  private playNotificationSound() {
+    try {
+      const audio = new Audio("/notification.wav");
+      audio.play();
+    } catch (e) {
+      // Fail silently if sound can't play
+    }
   }
 
-  private isUpcoming(dueDate: Date): boolean {
-    const now = new Date()
-    const tomorrow = new Date(now)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    return dueDate > now && dueDate <= tomorrow
-  }
-
-  private notifyTask(todo: Task, type: NotificationType) {
+  private notifyTodoistStyle(todo: Task, type: "due-soon" | "due-now" | "overdue") {
     const notificationId = `${todo.id}-${type}`
-    const notificationConfig = {
-      overdue: {
-        title: "Task Overdue",
-        description: `"${todo.title}" is overdue!`,
-        variant: "destructive" as const,
-      },
-      'due-today': {
-        title: "Task Due Today",
-        description: `"${todo.title}" is due today!`,
-        variant: "default" as const,
-      },
-      upcoming: {
-        title: "Upcoming Task",
-        description: `"${todo.title}" is due soon!`,
-        variant: "default" as const,
-      },
+    if (this.notifications.has(notificationId)) return
+
+    let title = ""
+    let description = ""
+    let variant: "default" | "destructive" = "default"
+    const dueDateStr = todo.dueDate ? format(new Date(todo.dueDate), "MMM d, yyyy") : ""
+    const dueTimeStr = todo.dueTime ? `at ${todo.dueTime}` : ""
+    const fullDue = [dueDateStr, dueTimeStr].filter(Boolean).join(" ")
+
+    if (type === "due-soon") {
+      title = "Due soon"
+      description = `"${todo.title}" is due in 30 minutes (${fullDue})`
+    } else if (type === "due-now") {
+      title = "Due now"
+      description = `"${todo.title}" is due now (${fullDue})`
+    } else if (type === "overdue") {
+      title = "Overdue"
+      description = `"${todo.title}" was due ${fullDue}`
+      variant = "destructive"
     }
 
-    const config = notificationConfig[type]
-
-    // Show toast notification
+    this.playNotificationSound();
     toast({
-      title: config.title,
-      description: config.description,
-      variant: config.variant,
+      title,
+      description,
+      variant,
     })
 
-    // Send browser notification if supported
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(config.title, {
-        body: config.description,
+      new Notification(title, {
+        body: description,
         icon: "/favicon.ico",
       })
     }
 
-    // Store notification to prevent duplicates
     this.notifications.set(notificationId, setTimeout(() => {
       this.notifications.delete(notificationId)
-    }, 24 * 60 * 60 * 1000)) // Clear after 24 hours
+    }, 24 * 60 * 60 * 1000))
   }
 
   public startMonitoring(todos: Task[]) {
-    // Check immediately
-    this.checkTasks(todos)
+    // Clear all scheduled notifications
+    this.scheduled.forEach((timeouts) => {
+      timeouts.forEach(clearTimeout)
+    })
+    this.scheduled.clear()
+    this.notifications.clear()
 
-    // Set up interval to check every 5 minutes
+    // Schedule notifications for all tasks
+    todos.forEach(todo => this.scheduleNotificationsForTask(todo))
+
+    // Re-schedule every 5 minutes in case tasks change
     const interval = setInterval(() => {
-      this.checkTasks(todos)
+      todos.forEach(todo => this.scheduleNotificationsForTask(todo))
     }, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
