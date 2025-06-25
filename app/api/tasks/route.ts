@@ -38,7 +38,18 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(userTasks);
+    // Map DB fields to camelCase for frontend
+    function mapTaskDbFieldsToCamelCase(taskFromDb: any) {
+      return {
+        ...taskFromDb,
+        dueDate: taskFromDb.due_date,
+        dueTime: taskFromDb.due_time,
+      };
+    }
+
+    const tasksForFrontend = userTasks.map(mapTaskDbFieldsToCamelCase);
+
+    return NextResponse.json(tasksForFrontend);
   } catch (error) {
     console.error("Error fetching tasks:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -54,7 +65,12 @@ export async function POST(req: Request) {
     }
 
     const json = await req.json();
-    const body = taskSchema.parse(json);
+    // Accept both camelCase and snake_case from frontend
+    const body = taskSchema.parse({
+      ...json,
+      due_date: json.due_date || json.dueDate,
+      due_time: json.due_time || json.dueTime,
+    });
 
     // Get the current highest position for ordering
     const lastTask = await db.query.tasks.findFirst({
@@ -98,7 +114,16 @@ export async function POST(req: Request) {
       with: { subtasks: true },
     });
 
-    return NextResponse.json(taskWithSubtasks, { status: 201 });
+    // Map DB fields to camelCase for frontend
+    function mapTaskDbFieldsToCamelCase(taskFromDb: any) {
+      return {
+        ...taskFromDb,
+        dueDate: taskFromDb.due_date,
+        dueTime: taskFromDb.due_time,
+      };
+    }
+
+    return NextResponse.json(mapTaskDbFieldsToCamelCase(taskWithSubtasks), { status: 201 });
   } catch (error) {
     console.error("Error creating task:", error);
     if (error instanceof z.ZodError) {
