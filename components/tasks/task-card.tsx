@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Icons } from "@/components/ui/icons";
+import { AlarmClock } from "lucide-react";
 
 interface TaskCardProps {
   task: Task;
@@ -104,7 +105,7 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
           </span>
           {task.dueTime && (
             <>
-              <Icons.clock className="h-4 w-4 ml-2" />
+              <AlarmClock className="h-4 w-4 ml-2" />
               <span>{task.dueTime}</span>
             </>
           )}
