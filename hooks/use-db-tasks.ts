@@ -19,7 +19,12 @@ export function useDatabaseTodos() {
     const overdue = todos.filter((todo) => {
       if (!todo.dueDate || todo.completed) return false
       const dueDate = new Date(todo.dueDate)
-      dueDate.setHours(23, 59, 59, 999)
+      if (todo.dueTime) {
+        const [hours, minutes] = todo.dueTime.split(":").map(Number)
+        dueDate.setHours(hours, minutes, 0, 0)
+      } else {
+        dueDate.setHours(23, 59, 59, 999)
+      }
       return dueDate < new Date()
     }).length
     const dueToday = todos.filter((todo) => {
