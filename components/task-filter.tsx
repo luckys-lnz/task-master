@@ -11,7 +11,8 @@ export function TodoFilter({ onFilterChange, currentFilter }: TodoFilterProps) {
   return (
     <div className="space-y-4">
       <Tabs
-        defaultValue="all"
+        defaultValue="active"
+        value={currentFilter.status} // Added this to ensure highlighting matches current status
         className="w-full"
         onValueChange={(value: string) => {
           onFilterChange({ ...currentFilter, status: value })
