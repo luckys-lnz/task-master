@@ -185,7 +185,7 @@ export default function TodoList() {
   }
 
   return (
-    <div className="space-y-6">3
+    <div className="space-y-6">
       {/* Use enhanced stats with overdue count */}
       <TodoStats stats={enhancedStats} />
 
