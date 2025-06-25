@@ -86,7 +86,16 @@ export async function PATCH(
       where: eq(tasks.id, params.id),
       with: { subtasks: true }
     });
-    return NextResponse.json(updatedTask);
+
+    function mapTaskDbFieldsToCamelCase(taskFromDb: any) {
+      return {
+        ...taskFromDb,
+        dueDate: taskFromDb.due_date,
+        dueTime: taskFromDb.due_time,
+      };
+    }
+
+    return NextResponse.json(mapTaskDbFieldsToCamelCase(updatedTask));
   } catch (error) {
     console.error("Task update error:", error);
     
