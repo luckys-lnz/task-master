@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"  // Added useMemo
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { useToast } from "@/hooks/use-toast"
 import { TodoItem } from "@/components/task-item"
@@ -39,10 +39,37 @@ export default function TodoList() {
   } = useDatabaseTodos()
 
   const [filteredTodos, setFilteredTodos] = useState<Task[]>([])
-  const [filter, setFilter] = useState({ category: "all", priority: "all", status: "all", dueDate: "all" })
+  const [filter, setFilter] = useState({ category: "all", priority: "all", status: "active", dueDate: "all" })
   const [showAddForm, setShowAddForm] = useState(false)
   const [showClearDialog, setShowClearDialog] = useState(false)
   const { toast } = useToast()
+
+  // Calculate overdue tasks
+  const overdueCount = useMemo(() => {
+    if (!todos) return 0;
+    
+    return todos.filter(todo => {
+      if (!todo.dueDate || todo.completed) return false;
+      
+      const dueDate = new Date(todo.dueDate);
+      if (todo.dueTime) {
+        const [hours, minutes] = todo.dueTime.split(":").map(Number);
+        dueDate.setHours(hours, minutes, 0, 0);
+      } else {
+        dueDate.setHours(23, 59, 59, 999);
+      }
+      
+      return dueDate < new Date();
+    }).length;
+  }, [todos]);
+
+  // Enhanced stats with overdue count
+  const enhancedStats = useMemo(() => {
+    return {
+      ...stats,
+      overdue: overdueCount
+    };
+  }, [stats, overdueCount]);
 
   // Initialize notification service
   useEffect(() => {
@@ -121,14 +148,16 @@ export default function TodoList() {
           return dueDate >= today && dueDate <= nextWeek
         })
       } else if (filter.dueDate === "overdue") {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-
         filtered = filtered.filter((todo) => {
           if (!todo.dueDate || todo.completed) return false
           const dueDate = new Date(todo.dueDate)
-          dueDate.setHours(0, 0, 0, 0)
-          return dueDate < today
+          if (todo.dueTime) {
+            const [hours, minutes] = todo.dueTime.split(":").map(Number)
+            dueDate.setHours(hours, minutes, 0, 0)
+          } else {
+            dueDate.setHours(23, 59, 59, 999)
+          }
+          return dueDate < new Date()
         })
       }
 
@@ -156,8 +185,9 @@ export default function TodoList() {
   }
 
   return (
-    <div className="space-y-6">
-      <TodoStats stats={stats} />
+    <div className="space-y-6">3
+      {/* Use enhanced stats with overdue count */}
+      <TodoStats stats={enhancedStats} />
 
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <TodoFilter onFilterChange={setFilter} currentFilter={filter} />
