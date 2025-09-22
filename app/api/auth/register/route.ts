@@ -8,16 +8,14 @@ import * as z from "zod";
 const registerSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(7, "Password must be at least 7 characters"),
+  password: z.string().min(6, "Password must be at least 7 characters"),
 });
 
 export async function POST(req: Request) {
   try {
     const json = await req.json();
-    console.log("Received registration data:", { ...json, password: '[REDACTED]' });
     
     const body = registerSchema.parse(json);
-    console.log("Validation passed");
 
     // Check if email already exists
     const existingUser = await db.query.users.findFirst({
@@ -25,18 +23,15 @@ export async function POST(req: Request) {
     });
 
     if (existingUser) {
-      console.log("User already exists with email:", body.email);
       return NextResponse.json(
         { error: "User with this email already exists" },
         { status: 400 }
       );
     }
 
-    console.log("No existing user found, proceeding with registration");
     const hashedPassword = await hash(body.password, 10);
 
     // Create user
-    console.log("Attempting to create user in database");
     const [newUser] = await db.insert(users)
       .values({
         name: body.name,
