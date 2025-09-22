@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { SignUpForm } from "@/components/auth/sign-up-form";
+import { CheckSquare } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Sign Up | Task Master",
@@ -13,9 +14,7 @@ export default function SignUpPage() {
         <div className="absolute inset-0 bg-muted" />
         <div className="relative z-10 flex flex-col items-center justify-center h-full p-8 text-center">
           <div className="mb-8">
-            <svg className="w-20 h-20 text-white mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
+            <CheckSquare className="w-20 h-20 text-white mx-auto" />
           </div>
           <blockquote className="space-y-4 max-w-md mx-auto">
             <p className="text-xl font-medium italic">
