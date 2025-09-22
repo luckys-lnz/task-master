@@ -1,5 +1,3 @@
-import { CheckSquare } from 'lucide-react'
-
 export default function Icon() {
   return (
     <svg
