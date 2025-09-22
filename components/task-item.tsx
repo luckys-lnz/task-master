@@ -28,9 +28,6 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("")
   const notificationRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  // Ensure `dueDate` and `dueTime` are added/edited in a valid format
-  console.log("Todo item being rendered:", todo)
-
   // Check if task is expired
   useEffect(() => {
     if (!todo.dueDate || todo.completed) {
