@@ -49,8 +49,6 @@ export async function POST(req: Request) {
       })
       .returning();
 
-    console.log("User created successfully:", { id: newUser.id, email: newUser.email });
-
     return NextResponse.json(
       { 
         user: {
