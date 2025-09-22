@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { SignInForm } from "@/components/auth/sign-in-form";
+import { CheckSquare } from "lucide-react";
 
 const quotes = [
   "The secret of getting ahead is getting started.",
@@ -34,20 +35,7 @@ export default function SignInPageClient() {
         <div className="absolute inset-0 bg-muted" />
         <div className="relative z-10 flex flex-col items-center justify-center h-full p-8 text-center">
           <div className="mb-8">
-            <svg
-              className="w-20 h-20 text-white mx-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+            <CheckSquare className="w-20 h-20 text-white mx-auto" />
           </div>
 
           <blockquote className="space-y-4 max-w-md mx-auto">
