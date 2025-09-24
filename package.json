@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npm run db:migrate && next start",
+    "start": "npm run db:migrate && next start -p $PORT",
     "db:generate": "drizzle-kit generate:pg",
     "db:migrate": "tsx lib/db/migrate.ts",
     "db:studio": "drizzle-kit studio"
