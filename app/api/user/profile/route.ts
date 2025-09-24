@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { users } from "@/src/db/schema";
+import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import * as z from "zod";
 
@@ -30,10 +30,8 @@ export async function PATCH(req: Request) {
     const updatedUser = await db.update(users)
       .set({
         name: body.name,
-        image: body.avatarUrl,
-        location: body.location,
-        bio: body.bio,
-        updatedAt: new Date(),
+        avatar_url: body.avatarUrl,
+        // updated_at: new Date(),
       })
       .where(eq(users.id, session.user.id))
       .returning();
