@@ -7,6 +7,7 @@ import { db } from "./db";
 import { compare } from "bcryptjs";
 import { users } from "./db/schema";
 import { eq } from "drizzle-orm";
+import { env } from "./env";
 
 declare module "next-auth" {
   interface Session {
@@ -31,17 +32,21 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          prompt: "select_account",
-          access_type: "offline",
-          response_type: "code"
-        }
-      }
-    }),
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+            authorization: {
+              params: {
+                prompt: "select_account",
+                access_type: "offline",
+                response_type: "code"
+              }
+            }
+          })
+        ]
+      : []),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -132,7 +137,8 @@ export const authOptions: NextAuthOptions = {
       return true;
     }
   },
-  debug: process.env.NODE_ENV === 'development'
+  debug: env.NODE_ENV === 'development',
+  secret: env.NEXTAUTH_SECRET
 };
 
 const handler = NextAuth(authOptions);
