@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { handleApiError, UnauthorizedError } from "@/lib/errors";
 
 const preferencesSchema = z.object({
   notificationsEnabled: z.boolean(),
@@ -16,8 +17,8 @@ export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session) {
-      return new NextResponse("Unauthorized", { status: 401 });
+    if (!session?.user?.id) {
+      throw new UnauthorizedError();
     }
 
     const body = await req.json();
@@ -27,10 +28,9 @@ export async function PATCH(req: Request) {
     await db
       .update(users)
       .set({
-        preferences: {
-          ...validatedData,
-        },
-        updatedAt: new Date(),
+        notifications_enabled: validatedData.notificationsEnabled,
+        default_view: validatedData.defaultView,
+        theme: validatedData.theme,
       })
       .where(eq(users.id, session.user.id));
 
@@ -39,10 +39,6 @@ export async function PATCH(req: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[PREFERENCES_PATCH]", error);
-    return new NextResponse(
-      "Internal error",
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 } 

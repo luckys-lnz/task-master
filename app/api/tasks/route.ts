@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { tasks, subtasks } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import * as z from "zod";
+import { handleApiError, UnauthorizedError } from "@/lib/errors";
 
 const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -27,7 +28,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const userTasks = await db.query.tasks.findMany({
@@ -51,8 +52,7 @@ export async function GET() {
 
     return NextResponse.json(tasksForFrontend);
   } catch (error) {
-    console.error("Error fetching tasks:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }
 
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const json = await req.json();
@@ -125,10 +125,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(mapTaskDbFieldsToCamelCase(taskWithSubtasks), { status: 201 });
   } catch (error) {
-    console.error("Error creating task:", error);
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
-    }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }
