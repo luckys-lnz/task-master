@@ -33,7 +33,7 @@
       ]
     },
     "allowJs": true,
-    "strict": false,
+    "strict": true,
     "noEmit": true,
     "incremental": true,
     "isolatedModules": true,

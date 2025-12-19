@@ -11,7 +11,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@auth/drizzle-adapter": "^0.3.17",
+    "@auth/drizzle-adapter": "^1.11.1",
     "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-alert-dialog": "^1.1.4",
@@ -65,9 +65,9 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.14",
-    "drizzle-kit": "^0.31.1",
+    "drizzle-kit": "^0.18.1",
     "eslint": "^8",
-    "eslint-config-next": "^14.2.25",
+    "eslint-config-next": "^16.0.10",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.0",
     "ts-node": "^10.9.2",
