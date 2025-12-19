@@ -13,7 +13,15 @@ import * as z from "zod";
 const signUpSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   email: z.string().email("Please enter a valid email"),
-  password: z.string().min(6, "Password must be at least 8 characters"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 type SignUpValues = z.infer<typeof signUpSchema>;
@@ -36,13 +44,14 @@ export function SignUpForm() {
     setError("");
 
     try {
-      // Register the user
+      // Register the user (exclude confirmPassword from the request)
+      const { confirmPassword, ...registerData } = data;
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(registerData),
       });
 
       const responseData = await response.json();
@@ -113,6 +122,16 @@ export function SignUpForm() {
             />
             {errors.password && (
               <p className="text-sm text-red-500">{errors.password.message}</p>
+            )}
+            <Input
+              {...register("confirmPassword")}
+              placeholder="Confirm Password"
+              type="password"
+              autoComplete="new-password"
+              disabled={isLoading}
+            />
+            {errors.confirmPassword && (
+              <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
             )}
           </div>
           {error && (
