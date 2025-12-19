@@ -4,14 +4,14 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 import path from "path";
 import "dotenv/config";
+import { env, validateEnv } from "../env";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is not set");
-}
+// Validate environment variables
+validateEnv();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString: env.DATABASE_URL,
+  ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 const db = drizzle(pool, { schema });
@@ -21,7 +21,7 @@ async function main() {
 
   try {
     await migrate(db, {
-      migrationsFolder: path.join(process.cwd(), "lib/db/migrations"),
+      migrationsFolder: path.join(process.cwd(), "drizzle"),
     });
     console.log("✅ Migrations completed successfully");
   } catch (error) {
