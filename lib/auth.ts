@@ -8,6 +8,7 @@ import { compare } from "bcryptjs";
 import { users } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { env } from "./env";
+import { normalizeEmail } from "./auth-utils";
 
 declare module "next-auth" {
   interface Session {
@@ -25,6 +26,18 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // Update session every 24 hours
+  },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: env.NODE_ENV === "production",
+      },
+    },
   },
   pages: {
     signIn: '/auth/signin',
@@ -59,14 +72,23 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
+          const { normalizeEmail, checkAccountLocked, incrementFailedLoginAttempts, resetFailedLoginAttempts } = await import("./auth-utils");
+          const normalizedEmail = normalizeEmail(credentials.email);
+
           const [user] = await db
             .select()
             .from(users)
-            .where(eq(users.email, credentials.email))
+            .where(eq(users.email, normalizedEmail))
             .limit(1);
 
           if (!user?.hashed_password) {
             return null;
+          }
+
+          // Check for account lockout
+          const isLocked = await checkAccountLocked(normalizedEmail);
+          if (isLocked) {
+            throw new Error("Account is temporarily locked due to too many failed login attempts. Please try again later.");
           }
 
           const isCorrectPassword = await compare(
@@ -75,8 +97,13 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!isCorrectPassword) {
+            // Increment failed attempts only on failed password
+            await incrementFailedLoginAttempts(normalizedEmail);
             return null;
           }
+
+          // Reset failed login attempts on successful login
+          await resetFailedLoginAttempts(normalizedEmail);
 
           return {
             id: user.id,
@@ -113,19 +140,24 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         try {
+          if (!user.email) {
+            return false;
+          }
+
+          const normalizedEmail = normalizeEmail(user.email);
           const [existingUser] = await db
             .select()
             .from(users)
-            .where(eq(users.email, user.email!))
+            .where(eq(users.email, normalizedEmail))
             .limit(1);
           
-          if (!existingUser && user.email) {
+          if (!existingUser) {
             // Create new user if doesn't exist
             await db.insert(users).values({
-              email: user.email,
+              email: normalizedEmail,
               name: user.name || null,
               image: user.image || null,
-              email_verified: new Date()
+              email_verified: new Date() // Google emails are pre-verified
             });
           }
           return true;

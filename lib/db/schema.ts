@@ -22,6 +22,10 @@ export const users = pgTable("users", {
   notifications_enabled: boolean("notifications_enabled").default(true),
   default_view: text("default_view").default("list"),
   theme: text("theme").default("light"),
+  reset_password_token: text("reset_password_token"),
+  reset_password_expires: timestamp("reset_password_expires", { mode: "date" }),
+  failed_login_attempts: text("failed_login_attempts").default("0"),
+  locked_until: timestamp("locked_until", { mode: "date" }),
   created_at: timestamp("created_at").defaultNow().notNull()
 });
 
