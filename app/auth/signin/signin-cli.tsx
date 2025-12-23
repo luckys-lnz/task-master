@@ -83,14 +83,6 @@ export default function SignInPageClient() {
             </p>
           </div>
           <SignInForm />
-          <p className="px-8 text-center text-sm text-white/70">
-            <a
-              href="/auth/signup"
-              className="hover:text-brand underline underline-offset-4"
-            >
-              Don&apos;t have an account? Sign up
-            </a>
-          </p>
         </div>
       </div>
     </div>
