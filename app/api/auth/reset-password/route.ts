@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { verifyPasswordResetToken, clearPasswordResetToken } from "@/lib/auth-utils";
+import { verifyPasswordResetToken } from "@/lib/auth-utils";
 import { handleApiError, ValidationError } from "@/lib/errors";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
