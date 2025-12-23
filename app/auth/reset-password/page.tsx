@@ -1,7 +1,20 @@
 "use client";
 
+import { Suspense } from "react";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { CheckSquare } from "lucide-react";
+
+function ResetPasswordFormWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-8">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
 
 export default function ResetPasswordPage() {
   return (
@@ -29,7 +42,7 @@ export default function ResetPasswordPage() {
               Enter your new password below
             </p>
           </div>
-          <ResetPasswordForm />
+          <ResetPasswordFormWrapper />
         </div>
       </div>
     </div>

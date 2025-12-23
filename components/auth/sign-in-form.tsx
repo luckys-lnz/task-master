@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -23,7 +23,7 @@ const signInSchema = z.object({
 
 type SignInValues = z.infer<typeof signInSchema>;
 
-export function SignInForm() {
+function SignInFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
@@ -173,5 +173,19 @@ export function SignInForm() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export function SignInForm() {
+  return (
+    <Suspense fallback={
+      <div className="grid gap-6">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-sm text-muted-foreground">Loading...</div>
+        </div>
+      </div>
+    }>
+      <SignInFormContent />
+    </Suspense>
   );
 }
