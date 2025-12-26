@@ -19,7 +19,7 @@ A beautiful task management application built with Next.js and PostgreSQL.
 - TypeScript
 - Tailwind CSS
 - Next-Auth Authentication
-- PostgreSQL with Drizzle ORM
+- Supabase (PostgreSQL) with Drizzle ORM
 - Sonner for toast notifications
 
 ## Getting Started
@@ -38,7 +38,13 @@ npm install
 3. Set up environment variables
 Create a `.env` file with the following variables:
 ```env
-DATABASE_URL=postgresql://tm@localhost:5432/taskmaster
+# Supabase Database Connection
+# Get this from: Supabase Dashboard > Project Settings > Database > Connection string
+DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@[YOUR-PROJECT-REF].supabase.co:5432/postgres
+
+# Or for local PostgreSQL:
+# DATABASE_URL=postgresql://tm@localhost:5432/taskmaster
+
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your-nextauth-secret
 GOOGLE_CLIENT_ID=your-google-client-id
@@ -46,6 +52,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
 4. Set up the database
+The database schema has already been applied to Supabase. If you're using a local database:
 ```bash
 npm run db:generate
 npm run db:migrate

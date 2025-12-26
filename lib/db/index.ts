@@ -18,7 +18,10 @@ if (typeof window === 'undefined') {
 
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
-  ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // Supabase requires SSL connections
+  ssl: env.DATABASE_URL?.includes('supabase.co') 
+    ? { rejectUnauthorized: false } 
+    : (env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),
   // Connection pool configuration for better performance
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
@@ -36,13 +39,31 @@ pool.on('error', (err: Error) => {
     console.error('\n❌ Database Authentication Failed');
     console.error('The database credentials in DATABASE_URL are incorrect.');
     console.error('Expected format: postgresql://username:password@host:port/database');
-    console.error('Current DATABASE_URL format:', env.DATABASE_URL.replace(/:[^:@]+@/, ':****@'));
+    if (env.DATABASE_URL) {
+      console.error('Current DATABASE_URL format:', env.DATABASE_URL.replace(/:[^:@]+@/, ':****@'));
+    }
   } else if (err.message.includes('does not exist') || (err as any).code === '3D000') {
     console.error('\n❌ Database Not Found');
     console.error('The database specified in DATABASE_URL does not exist.');
   } else if (err.message.includes('connection refused') || (err as any).code === 'ECONNREFUSED') {
     console.error('\n❌ Connection Refused');
     console.error('Cannot connect to the database server. Check if PostgreSQL is running.');
+  } else if ((err as any).code === 'ENOTFOUND' && err.message.includes('supabase.co')) {
+    console.error('\n❌ Supabase Hostname Not Found');
+    console.error('The Supabase hostname in DATABASE_URL is incorrect.');
+    if (env.DATABASE_URL) {
+      const url = new URL(env.DATABASE_URL.replace('postgresql://', 'http://'));
+      if (url.hostname.startsWith('db.')) {
+        console.error('\n💡 Fix: Remove "db." prefix from hostname');
+        console.error(`   Current: ${url.hostname}`);
+        console.error(`   Should be: ${url.hostname.replace('db.', '')}`);
+        console.error(`   Correct format: postgresql://postgres:[PASSWORD]@${url.hostname.replace('db.', '')}:5432/postgres`);
+      } else {
+        console.error(`   Current hostname: ${url.hostname}`);
+        console.error('   For Supabase, hostname should be: [PROJECT-REF].supabase.co');
+        console.error('   Get the correct connection string from: Supabase Dashboard > Project Settings > Database');
+      }
+    }
   }
   
   process.exit(-1);
@@ -60,6 +81,13 @@ if (process.env.NODE_ENV === 'development') {
       if (err.code === '28P01') {
         console.error('\n💡 Fix: Update your DATABASE_URL with correct credentials:');
         console.error('   Format: postgresql://username:password@host:port/database');
+      } else if (err.code === 'ENOTFOUND' && err.message.includes('supabase.co')) {
+        const dbUrl = env.DATABASE_URL;
+        if (dbUrl && dbUrl.includes('db.')) {
+          console.error('\n💡 Fix: Remove "db." prefix from Supabase hostname');
+          console.error('   Correct format: postgresql://postgres:[PASSWORD]@[PROJECT-REF].supabase.co:5432/postgres');
+          console.error('   Get connection string from: Supabase Dashboard > Project Settings > Database');
+        }
       }
     });
 } 
