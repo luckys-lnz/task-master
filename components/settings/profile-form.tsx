@@ -9,14 +9,14 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { AvatarUpload } from "./avatar-upload";
 import { Icons } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/use-toast";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
-  avatarUrl: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  avatarUrl: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -29,18 +29,27 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user.image || null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: user.name || "",
       avatarUrl: user.image || "",
-      location: "",
-      bio: "",
     },
   });
 
-  async function onSubmit(data: ProfileFormValues) {
+  const handleAvatarChange = (url: string) => {
+    setAvatarUrl(url);
+    form.setValue("avatarUrl", url);
+  };
+
+  const handleAvatarRemove = () => {
+    setAvatarUrl(null);
+    form.setValue("avatarUrl", "");
+  };
+
+  const handleSubmit = async (data: ProfileFormValues) => {
     setIsLoading(true);
 
     try {
@@ -49,7 +58,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          name: data.name,
+          avatarUrl: avatarUrl || data.avatarUrl || null,
+        }),
       });
 
       if (!response.ok) {
@@ -62,89 +74,117 @@ export function ProfileForm({ user }: ProfileFormProps) {
         description: "Your profile has been updated successfully.",
       });
 
-      // Refresh the page to update the session
       router.refresh();
     } catch (error) {
       console.error("Error updating profile:", error);
       toast({
         title: "Error",
-        description: "Failed to update profile. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile</CardTitle>
-          <CardDescription>
-            Update your profile information and preferences.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={form.watch("avatarUrl") || user.image || ""} alt={user.name || ""} />
-              <AvatarFallback>
-                {form.watch("name")?.charAt(0).toUpperCase() || user.name?.charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="space-y-1">
-              <h3 className="font-medium">{form.watch("name") || user.name || "User"}</h3>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
-            </div>
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+      {/* Profile Picture Section */}
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <Label className="text-sm font-semibold">Profile Picture</Label>
+          <p className="text-xs text-muted-foreground">
+            Upload a photo to personalize your account. This will be visible to others.
+          </p>
+        </div>
+        <AvatarUpload
+          currentAvatarUrl={avatarUrl}
+          userName={form.watch("name") || user.name || undefined}
+          onAvatarChange={handleAvatarChange}
+          onRemove={handleAvatarRemove}
+          disabled={isLoading}
+        />
+      </div>
+
+      <Separator className="my-8" />
+
+      {/* Personal Information Section */}
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <Label className="text-sm font-semibold">Personal Information</Label>
+          <p className="text-xs text-muted-foreground">
+            Update your personal details and how others see you.
+          </p>
+        </div>
+
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-sm font-medium">
+              Display Name
+            </Label>
+            <Input
+              id="name"
+              {...form.register("name")}
+              placeholder="Enter your full name"
+              className="max-w-lg"
+              aria-invalid={!!form.formState.errors.name}
+              aria-describedby={form.formState.errors.name ? "name-error" : "name-help"}
+              disabled={isLoading}
+            />
+            {form.formState.errors.name ? (
+              <p id="name-error" className="text-sm text-destructive mt-1">
+                {form.formState.errors.name.message}
+              </p>
+            ) : (
+              <p id="name-help" className="text-xs text-muted-foreground mt-1">
+                This is how your name will appear to others.
+              </p>
+            )}
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Email Address</Label>
+            <div className="max-w-lg">
               <Input
-                id="name"
-                {...form.register("name")}
-                placeholder="Enter your name"
+                value={user.email || ""}
+                disabled
+                className="bg-muted/50 cursor-not-allowed"
+                aria-label="Email address (read-only)"
               />
-              {form.formState.errors.name && (
-                <p className="text-sm text-red-500">
-                  {form.formState.errors.name.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="avatarUrl" className="text-sm font-medium">
-                Avatar URL
-              </label>
-              <Input
-                id="avatarUrl"
-                {...form.register("avatarUrl")}
-                className="mt-1"
-                placeholder="https://example.com/avatar.jpg"
-                type="url"
-              />
-              {form.formState.errors.avatarUrl && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.avatarUrl.message}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">
-                Enter a URL to your profile picture
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Your email address cannot be changed here. Contact support if you need to update it.
               </p>
             </div>
           </div>
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading && (
+        </div>
+      </div>
+
+      <Separator className="my-8" />
+
+      {/* Actions */}
+      <div className="flex justify-end gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            form.reset();
+            setAvatarUrl(user.image || null);
+          }}
+          disabled={isLoading}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading} className="min-w-[120px]">
+          {isLoading ? (
+            <>
               <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Save Changes
-          </Button>
-        </CardFooter>
-      </Card>
+              Saving...
+            </>
+          ) : (
+            "Save Changes"
+          )}
+        </Button>
+      </div>
     </form>
   );
 } 

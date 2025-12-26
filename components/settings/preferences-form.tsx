@@ -6,9 +6,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Icons } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/use-toast";
@@ -81,92 +81,91 @@ export function PreferencesForm({ initialPreferences }: PreferencesFormProps) {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Preferences</CardTitle>
-          <CardDescription>
-            Customize your Task-Master experience.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="notifications">Notifications</Label>
-              <p className="text-sm text-muted-foreground">
-                Receive notifications for task reminders and updates.
-              </p>
-            </div>
-            <Switch
-              id="notifications"
-              checked={form.watch("notificationsEnabled")}
-              onCheckedChange={(checked: boolean) =>
-                form.setValue("notificationsEnabled", checked)
-              }
-            />
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <div className="space-y-8">
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold">Default View</Label>
+            <p className="text-xs text-muted-foreground">
+              Choose how you want to view your tasks by default.
+            </p>
           </div>
-
-          <div className="space-y-4">
-            <div>
-              <Label>Default View</Label>
-              <p className="text-sm text-muted-foreground mb-2">
-                Choose how you want to view your tasks by default.
-              </p>
-              <RadioGroup
-                value={form.watch("defaultView")}
-                onValueChange={(value: "list" | "grid") =>
-                  form.setValue("defaultView", value)
-                }
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="list" id="list" />
-                  <Label htmlFor="list">List</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="grid" id="grid" />
-                  <Label htmlFor="grid">Grid</Label>
-                </div>
-              </RadioGroup>
+          <RadioGroup
+            value={form.watch("defaultView")}
+            onValueChange={(value: "list" | "grid") =>
+              form.setValue("defaultView", value)
+            }
+            className="flex gap-8"
+            aria-label="Default view selection"
+          >
+            <div className="flex items-center space-x-2.5">
+              <RadioGroupItem value="list" id="list" />
+              <Label htmlFor="list" className="font-normal cursor-pointer text-sm">
+                List
+              </Label>
             </div>
-
-            <div>
-              <Label>Theme</Label>
-              <p className="text-sm text-muted-foreground mb-2">
-                Choose your preferred theme.
-              </p>
-              <RadioGroup
-                value={form.watch("theme")}
-                onValueChange={(value: "light" | "dark" | "system") =>
-                  form.setValue("theme", value)
-                }
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="light" id="light" />
-                  <Label htmlFor="light">Light</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="dark" id="dark" />
-                  <Label htmlFor="dark">Dark</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="system" id="system" />
-                  <Label htmlFor="system">System</Label>
-                </div>
-              </RadioGroup>
+            <div className="flex items-center space-x-2.5">
+              <RadioGroupItem value="grid" id="grid" />
+              <Label htmlFor="grid" className="font-normal cursor-pointer text-sm">
+                Grid
+              </Label>
             </div>
+          </RadioGroup>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label className="text-sm font-semibold">Theme</Label>
+            <p className="text-xs text-muted-foreground">
+              Choose your preferred color theme.
+            </p>
           </div>
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading && (
+          <RadioGroup
+            value={form.watch("theme")}
+            onValueChange={(value: "light" | "dark" | "system") =>
+              form.setValue("theme", value)
+            }
+            className="flex gap-8"
+            aria-label="Theme selection"
+          >
+            <div className="flex items-center space-x-2.5">
+              <RadioGroupItem value="light" id="light" />
+              <Label htmlFor="light" className="font-normal cursor-pointer text-sm">
+                Light
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2.5">
+              <RadioGroupItem value="dark" id="dark" />
+              <Label htmlFor="dark" className="font-normal cursor-pointer text-sm">
+                Dark
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2.5">
+              <RadioGroupItem value="system" id="system" />
+              <Label htmlFor="system" className="font-normal cursor-pointer text-sm">
+                System
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+      </div>
+
+      <Separator className="my-8" />
+
+      <div className="flex justify-end">
+        <Button type="submit" disabled={isLoading} className="min-w-[120px]">
+          {isLoading ? (
+            <>
               <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Save Preferences
-          </Button>
-        </CardFooter>
-      </Card>
+              Saving...
+            </>
+          ) : (
+            "Save Preferences"
+          )}
+        </Button>
+      </div>
     </form>
   );
 } 

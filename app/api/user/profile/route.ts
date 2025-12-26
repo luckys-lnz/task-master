@@ -8,7 +8,10 @@ import { handleApiError } from "@/lib/errors";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  avatarUrl: z.string().url("Please enter a valid URL").optional(),
+  avatarUrl: z.string().optional().refine(
+    (val) => !val || val.startsWith("data:image/") || val.startsWith("http://") || val.startsWith("https://"),
+    { message: "Please enter a valid image URL or data URL" }
+  ),
   location: z.string().optional(),
   bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
 });

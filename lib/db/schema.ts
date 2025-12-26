@@ -56,8 +56,8 @@ export const subtasks = pgTable('subtasks', {
   task_id: uuid('task_id')
     .notNull()
     .references(() => tasks.id, { onDelete: 'cascade' }),
-  created_at: timestamp('created_at').defaultNow(),
-  updated_at: timestamp('updated_at').defaultNow(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Define relations
