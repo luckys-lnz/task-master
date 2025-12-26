@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Zap, Shield, TrendingUp, ArrowRight, Sparkles, Star } from "lucide-react";
+import { CheckSquare, Zap, Shield, TrendingUp, ArrowRight, Sparkles } from "lucide-react";
 
 const features = [
   {
