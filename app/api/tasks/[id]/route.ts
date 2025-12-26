@@ -5,6 +5,7 @@ import { tasks, subtasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { mapTaskToCamelCase } from "@/lib/utils";
+import { handleApiError } from "@/lib/errors";
 
 const updateTaskSchema = z.object({
   title: z.string(),
