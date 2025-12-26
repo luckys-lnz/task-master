@@ -42,6 +42,7 @@ export function Confetti({ trigger, duration = 2000, particleCount = 50 }: Confe
 
       return () => clearTimeout(timeout)
     }
+    return undefined
   }, [trigger, duration, particleCount])
 
   if (particles.length === 0) return null
