@@ -171,7 +171,7 @@ export function SignUpForm() {
                   } else {
                     setServerError(data.error || "Failed to resend verification email");
                   }
-                } catch (err) {
+                } catch {
                   setServerError("Failed to resend verification email");
                 } finally {
                   setIsLoading(false);

@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckSquare, Loader2, AlertCircle, Mail, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
@@ -101,7 +100,7 @@ function VerifyEmailContent() {
         const data = await response.json();
         setMessage(data.error || "Failed to resend email");
       }
-    } catch (err) {
+    } catch {
       setMessage("Failed to resend verification email");
     } finally {
       setIsResending(false);

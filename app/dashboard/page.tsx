@@ -13,7 +13,7 @@ export default async function DashboardPage() {
         dbConnected={true}
       />
     );
-  } catch (error) {
+  } catch {
     // Redirect to signin if validation fails
     redirect("/auth/signin");
   }

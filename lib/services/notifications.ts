@@ -70,7 +70,7 @@ export class NotificationService {
     try {
       const audio = new Audio("/notification.wav");
       audio.play();
-    } catch (e) {
+    } catch {
       // Fail silently if sound can't play
     }
   }

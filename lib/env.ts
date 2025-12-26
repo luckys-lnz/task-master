@@ -58,7 +58,7 @@ export function validateEnv() {
           '   Get the correct connection string from: Supabase Dashboard > Project Settings > Database'
         );
       }
-    } catch (e) {
+    } catch {
       // URL parsing failed, skip this check
     }
   }

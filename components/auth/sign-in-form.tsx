@@ -74,7 +74,7 @@ function SignInFormContent() {
         router.push("/dashboard");
         router.refresh();
       }
-    } catch (error) {
+    } catch {
       setServerError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);

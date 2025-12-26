@@ -33,7 +33,7 @@ interface PreferencesFormProps {
 export function PreferencesForm({ initialPreferences }: PreferencesFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<PreferencesFormValues>({
