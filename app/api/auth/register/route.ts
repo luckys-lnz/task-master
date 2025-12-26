@@ -8,6 +8,7 @@ import { handleApiError, ValidationError } from "@/lib/errors";
 import { normalizeEmail, generateEmailVerificationToken } from "@/lib/auth-utils";
 import { sendVerificationEmail } from "@/lib/email";
 import { rateLimit, getClientIdentifier } from "@/lib/rate-limit";
+import { env } from "@/lib/env";
 
 const registerSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
 
     const hashedPassword = await hash(body.password, 10);
 
-    // Create user
+    // Create user in NextAuth database
     const [newUser] = await db.insert(users)
       .values({
         name: body.name,
@@ -64,18 +65,14 @@ export async function POST(req: Request) {
       .returning();
 
     // Generate and send verification email
-    let emailResult;
-    try {
-      const token = await generateEmailVerificationToken(normalizedEmail);
-      emailResult = await sendVerificationEmail(normalizedEmail, token);
-      
-      if (!emailResult.success && emailResult.error) {
-        console.error("Failed to send verification email:", emailResult.error);
-      }
-    } catch (error) {
-      // Log error but don't fail registration
-      console.error("Failed to send verification email:", error);
-      emailResult = { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    const token = await generateEmailVerificationToken(normalizedEmail);
+    const emailResult = await sendVerificationEmail(normalizedEmail, token);
+
+    if (!emailResult.success) {
+      console.error("❌ Failed to send verification email:", emailResult.error);
+      console.error("📧 Verification URL (for manual use):", emailResult.verificationUrl);
+    } else {
+      console.log("✅ Verification email sent successfully to:", normalizedEmail);
     }
 
     return NextResponse.json(
@@ -85,12 +82,17 @@ export async function POST(req: Request) {
           name: newUser.name,
           email: newUser.email
         },
-        message: "Account created successfully. Please check your email to verify your account.",
-        // Include verification URL in development for easy testing
-        ...(process.env.NODE_ENV === "development" && emailResult?.verificationUrl && {
+        message: emailResult?.success 
+          ? "Account created successfully. Please check your email to verify your account."
+          : "Account created successfully. However, we couldn't send the verification email. Please use the resend verification feature.",
+        // Include verification URL in development or if email failed
+        ...((process.env.NODE_ENV === "development" || !emailResult?.success) && emailResult?.verificationUrl && {
           verificationUrl: emailResult.verificationUrl,
-          note: "In development mode, use the verification URL above to verify your email."
-        })
+          note: process.env.NODE_ENV === "development" 
+            ? "In development mode, use the verification URL above to verify your email."
+            : "Email service not configured. Use this URL to verify your email, or configure RESEND_API_KEY to enable email sending."
+        }),
+        emailSent: emailResult?.success ?? false
       },
       { status: 201 }
     );
