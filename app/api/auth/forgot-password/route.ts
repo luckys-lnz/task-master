@@ -4,7 +4,7 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { generatePasswordResetToken, normalizeEmail } from "@/lib/auth-utils";
 import { sendPasswordResetEmail } from "@/lib/email";
-import { handleApiError, ValidationError } from "@/lib/errors";
+import { handleApiError } from "@/lib/errors";
 import { rateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import * as z from "zod";
 
