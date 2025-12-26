@@ -8,7 +8,6 @@ import { handleApiError, ValidationError } from "@/lib/errors";
 import { normalizeEmail, generateEmailVerificationToken } from "@/lib/auth-utils";
 import { sendVerificationEmail } from "@/lib/email";
 import { rateLimit, getClientIdentifier } from "@/lib/rate-limit";
-import { env } from "@/lib/env";
 import { sanitizeName, sanitizeEmail, validatePasswordStrength, validateInputSecurity, validateRequestBodySize } from "@/lib/security";
 
 const registerSchema = z.object({

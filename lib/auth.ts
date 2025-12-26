@@ -154,26 +154,19 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          const { normalizeEmail, checkAccountLocked, incrementFailedLoginAttempts, resetFailedLoginAttempts } = await import("./auth-utils");
+          const { normalizeEmail, checkAccountLockedAndGetUser, incrementFailedLoginAttempts, resetFailedLoginAttempts } = await import("./auth-utils");
           const normalizedEmail = normalizeEmail(sanitizedEmail);
 
-          const [user] = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, normalizedEmail))
-            .limit(1);
-
-          if (!user?.hashed_password) {
+          // Single query to check lock and get user data (optimized)
+          const user = await checkAccountLockedAndGetUser(normalizedEmail);
+          
+          // If user is null, account is either locked or doesn't exist
+          if (!user) {
             return null;
           }
 
-          // Check for account lockout
-          const isLocked = await checkAccountLocked(normalizedEmail);
-          if (isLocked) {
-            // Create error with specific code for NextAuth to handle
-            const error = new Error("Account is temporarily locked due to too many failed login attempts. Please try again later.");
-            (error as any).code = "ACCOUNT_LOCKED";
-            throw error;
+          if (!user.hashed_password) {
+            return null;
           }
 
           const isCorrectPassword = await compare(

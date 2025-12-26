@@ -149,26 +149,36 @@ export function useDatabaseTodos() {
     }
   }
 
-  // Clear all tasks (dangerous action)
+  // Clear all tasks (dangerous action) - optimized with batch delete
   const clearAllTodos = async () => {
     try {
-      // Batch delete all tasks
-      for (const todo of todos) {
-        await deleteTodo(todo.id) // Reuse deleteTodo logic
+      if (todos.length === 0) return;
+
+      // Batch delete all tasks in a single request
+      const taskIds = todos.map((todo) => todo.id);
+      const response = await fetch("/api/tasks/batch-delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to clear all tasks");
       }
-      setTodos([])
+
+      setTodos([]);
 
       toast({
         title: "All tasks cleared",
         description: "All your tasks have been deleted",
-      })
+      });
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to clear todos"))
+      setError(err instanceof Error ? err : new Error("Failed to clear todos"));
       toast({
         title: "Error",
         description: "Failed to clear tasks",
         variant: "destructive",
-      })
+      });
     }
   }
 

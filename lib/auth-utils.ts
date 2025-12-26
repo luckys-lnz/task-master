@@ -155,24 +155,34 @@ export async function clearPasswordResetToken(userId: string): Promise<void> {
 }
 
 /**
- * Check if account is locked
+ * Check if account is locked and get user data in one query
+ * Returns user data if not locked, null if locked or not found
  */
-export async function checkAccountLocked(
+export async function checkAccountLockedAndGetUser(
   email: string
-): Promise<boolean> {
+): Promise<{ id: string; hashed_password: string | null; email: string | null; name: string | null; image: string | null; email_verified: Date | null; locked_until: Date | null; failed_login_attempts: string } | null> {
   const [user] = await db
-    .select({ locked_until: users.locked_until })
+    .select({ 
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      image: users.image,
+      hashed_password: users.hashed_password,
+      email_verified: users.email_verified,
+      locked_until: users.locked_until,
+      failed_login_attempts: users.failed_login_attempts
+    })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
 
   if (!user) {
-    return false;
+    return null;
   }
 
   // Check if account is locked
   if (user.locked_until && user.locked_until > new Date()) {
-    return true;
+    return null; // Account is locked
   }
 
   // Clear lock if expired
@@ -186,7 +196,17 @@ export async function checkAccountLocked(
       .where(eq(users.email, email));
   }
 
-  return false;
+  return user;
+}
+
+/**
+ * Check if account is locked (legacy function for backward compatibility)
+ */
+export async function checkAccountLocked(
+  email: string
+): Promise<boolean> {
+  const user = await checkAccountLockedAndGetUser(email);
+  return user === null;
 }
 
 /**
