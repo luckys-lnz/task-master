@@ -8,10 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { format } from "date-fns"
-import { CalendarIcon, Clock, Plus, X, Paperclip } from "lucide-react"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { Plus, X, Paperclip } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Task } from "@/lib/types"
 import { TagInput } from "@/components/tag-input"
@@ -41,6 +39,48 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
   }>>([])
   const [attachments, setAttachments] = useState<File[]>([])
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("")
+  const [errors, setErrors] = useState<{
+    title?: string
+    dueDate?: string
+    dueTime?: string
+  }>({})
+
+  const validateForm = (): boolean => {
+    const newErrors: typeof errors = {}
+
+    // Validate title
+    if (!title.trim()) {
+      newErrors.title = "Title is required"
+    } else if (title.trim().length < 3) {
+      newErrors.title = "Title must be at least 3 characters"
+    } else if (title.trim().length > 200) {
+      newErrors.title = "Title must be less than 200 characters"
+    }
+
+    // Validate date and time combination
+    if (dueDate) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const selectedDate = new Date(dueDate)
+      selectedDate.setHours(0, 0, 0, 0)
+
+      if (selectedDate < today) {
+        newErrors.dueDate = "Cannot select a past date"
+      } else if (selectedDate.getTime() === today.getTime() && dueTime) {
+        const [hours, minutes] = dueTime.split(":").map(Number)
+        const selectedDateTime = new Date(dueDate)
+        selectedDateTime.setHours(hours, minutes, 0, 0)
+        const now = new Date()
+
+        if (selectedDateTime < now) {
+          newErrors.dueTime = "Cannot select a time in the past"
+        }
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
   const handleAddSubtask = () => {
     if (newSubtaskTitle.trim()) {
@@ -62,7 +102,9 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!title.trim()) return
+    if (!validateForm()) {
+      return
+    }
 
     onSave({
       title,
@@ -151,32 +193,48 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
             <TagInput tags={tags} setTags={setTags} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Due Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-full justify-start text-left font-normal", !dueDate && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dueDate ? format(dueDate, "PPP") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="dueTime">Due Time</Label>
-              <div className="flex">
-                <Clock className="mr-2 h-4 w-4 mt-3" />
-                <Input id="dueTime" type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} />
-              </div>
-            </div>
+          <div className="space-y-2">
+            <DateTimePicker
+              date={dueDate}
+              time={dueTime}
+              onDateChange={(date) => {
+                setDueDate(date)
+                if (errors.dueDate) {
+                  setErrors((prev) => {
+                    const newErrors = { ...prev }
+                    delete newErrors.dueDate
+                    return newErrors
+                  })
+                }
+              }}
+              onTimeChange={(time) => {
+                setDueTime(time)
+                if (errors.dueTime) {
+                  setErrors((prev) => {
+                    const newErrors = { ...prev }
+                    delete newErrors.dueTime
+                    return newErrors
+                  })
+                }
+              }}
+              onClear={() => {
+                setDueDate(undefined)
+                setDueTime("")
+                setErrors((prev) => {
+                  const newErrors = { ...prev }
+                  delete newErrors.dueDate
+                  delete newErrors.dueTime
+                  return newErrors
+                })
+              }}
+              label="Due Date & Time"
+            />
+            {(errors.dueDate || errors.dueTime) && (
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <span>•</span>
+                <span>{errors.dueDate || errors.dueTime}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
