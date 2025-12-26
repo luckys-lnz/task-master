@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SignInForm } from "@/components/auth/sign-in-form";
+import { SignUpForm } from "@/components/auth/sign-up-form";
 import { CheckSquare } from "lucide-react";
 
-export default function SignInPageClient() {
+export default function SignUpPageClient() {
   const [mounted, setMounted] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0.5, y: 0.5 });
 
@@ -19,10 +19,7 @@ export default function SignInPageClient() {
     };
     
     window.addEventListener("mousemove", handleMouseMove);
-    
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-    };
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
   return (
@@ -66,10 +63,10 @@ export default function SignInPageClient() {
           {/* Heading */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold tracking-tight mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Welcome back
+              Create an account
             </h1>
             <p className="text-sm text-muted-foreground">
-              Sign in to your account to continue
+              Get started with Task Master today
             </p>
           </div>
 
@@ -78,8 +75,22 @@ export default function SignInPageClient() {
             className={`transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
             style={{ animationDelay: '0.2s' }}
           >
-            <SignInForm />
+            <SignUpForm />
           </div>
+
+          {/* Sign In Link */}
+          <p 
+            className={`mt-6 text-center text-sm text-muted-foreground transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+            style={{ animationDelay: '0.4s' }}
+          >
+            Already have an account?{" "}
+            <a
+              href="/auth/signin"
+              className="font-semibold text-primary hover:underline underline-offset-4 transition-colors"
+            >
+              Sign in
+            </a>
+          </p>
         </div>
       </div>
     </div>

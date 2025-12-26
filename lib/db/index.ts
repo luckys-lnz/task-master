@@ -40,7 +40,7 @@ pool.on('error', (err: Error) => {
     console.error('The database credentials in DATABASE_URL are incorrect.');
     console.error('Expected format: postgresql://username:password@host:port/database');
     if (env.DATABASE_URL) {
-      console.error('Current DATABASE_URL format:', env.DATABASE_URL.replace(/:[^:@]+@/, ':****@'));
+    console.error('Current DATABASE_URL format:', env.DATABASE_URL.replace(/:[^:@]+@/, ':****@'));
     }
   } else if (err.message.includes('does not exist') || (err as any).code === '3D000') {
     console.error('\n❌ Database Not Found');

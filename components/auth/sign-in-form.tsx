@@ -81,13 +81,13 @@ function SignInFormContent() {
       <Button
         variant="outline"
         type="button"
-        disabled={isLoading}
+              disabled={isLoading}
         onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
         className="w-full font-medium"
       >
         <Icons.google className="mr-2 h-4 w-4" />
         Continue with Google
-      </Button>
+          </Button>
 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
@@ -140,7 +140,7 @@ function SignInFormContent() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
-                disabled={isLoading}
+        disabled={isLoading}
                 className={cn("pl-10 pr-10", errors.password && "border-destructive focus-visible:ring-destructive")}
               />
               <button
@@ -172,7 +172,7 @@ function SignInFormContent() {
           ) : (
             "Sign In"
           )}
-        </Button>
+      </Button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
@@ -183,7 +183,7 @@ function SignInFormContent() {
       </p>
     </div>
   );
-}
+} 
 
 export function SignInForm() {
   return (
