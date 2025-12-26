@@ -21,7 +21,6 @@ function Calendar({
 }: CalendarProps) {
   return (
     <div className="w-full max-w-full">
-       {/* @ts-expect-error - react-day-picker v9 has complex discriminated union types  */}
       <DayPicker
         mode={mode}
         showOutsideDays={showOutsideDays}

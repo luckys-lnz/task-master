@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Icons } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/use-toast";
 import { Camera, X } from "lucide-react";

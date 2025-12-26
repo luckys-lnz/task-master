@@ -176,6 +176,7 @@ export default function TodoList() {
 
       return () => clearTimeout(timeout)
     }
+    return undefined
   }, [todos, filter])
 
   const handleDragEnd = (result: any) => {

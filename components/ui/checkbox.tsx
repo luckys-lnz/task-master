@@ -11,7 +11,7 @@ const Checkbox = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
 >(({ className, ...props }, ref) => {
   const [ripples, setRipples] = React.useState<Array<{ id: number; x: number; y: number }>>([])
-  const checkboxRef = React.useRef<HTMLButtonElement>(null)
+  const checkboxRef = React.useRef<HTMLButtonElement | null>(null)
   const rippleIdRef = React.useRef(0)
 
   const handleCheckedChange = (checked: boolean) => {
