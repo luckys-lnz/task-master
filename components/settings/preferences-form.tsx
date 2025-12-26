@@ -26,6 +26,7 @@ interface PreferencesFormProps {
   initialPreferences: {
     notificationsEnabled: boolean;
     defaultView: "list" | "grid";
+    theme: "light" | "dark" | "system";
   };
 }
 
@@ -40,7 +41,7 @@ export function PreferencesForm({ initialPreferences }: PreferencesFormProps) {
     defaultValues: {
       notificationsEnabled: initialPreferences.notificationsEnabled,
       defaultView: initialPreferences.defaultView,
-      theme: (theme as "light" | "dark" | "system") || "system",
+      theme: initialPreferences.theme || "system",
     },
   });
 

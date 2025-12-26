@@ -21,7 +21,6 @@ export function AddTodoForm({ onAdd, onCancel }: AddTodoFormProps) {
       dueDate: todoData.dueDate || "",
       dueTime: todoData.dueTime || "",
       completed: false,
-      is_completed: false,
       notes: todoData.notes || "",
       subtasks: [],
       createdAt: new Date().toISOString(),

@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getValidatedSession } from "@/lib/validate-session";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { handleApiError, UnauthorizedError } from "@/lib/errors";
+import { handleApiError } from "@/lib/errors";
 
 const preferencesSchema = z.object({
   notificationsEnabled: z.boolean(),
@@ -15,11 +14,7 @@ const preferencesSchema = z.object({
 
 export async function PATCH(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      throw new UnauthorizedError();
-    }
+    const session = await getValidatedSession();
 
     const body = await req.json();
     const validatedData = preferencesSchema.parse(body);

@@ -17,8 +17,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
 const signInSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string()
+    .email("Please enter a valid email address")
+    .max(320, "Email address is too long")
+    .toLowerCase()
+    .trim(),
+  password: z.string()
+    .min(1, "Password is required")
+    .max(128, "Password is too long"),
 });
 
 type SignInValues = z.infer<typeof signInSchema>;
@@ -140,7 +146,8 @@ function SignInFormContent() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
-        disabled={isLoading}
+                disabled={isLoading}
+                maxLength={128}
                 className={cn("pl-10 pr-10", errors.password && "border-destructive focus-visible:ring-destructive")}
               />
               <button

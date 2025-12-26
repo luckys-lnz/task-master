@@ -9,6 +9,8 @@ import { users } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { env } from "./env";
 import { normalizeEmail } from "./auth-utils";
+import { sanitizeEmail, validateInputSecurity } from "./security";
+import { rateLimit } from "./rate-limit";
 
 declare module "next-auth" {
   interface Session {
@@ -60,6 +62,62 @@ export const authOptions: NextAuthOptions = {
           })
         ]
       : []),
+    // Email verification provider - allows auto-login after email verification
+    CredentialsProvider({
+      id: "email-verification",
+      name: "Email Verification",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        token: { label: "Verification Token", type: "text" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.token) {
+          return null;
+        }
+
+        try {
+          const { normalizeEmail, verifyEmailToken } = await import("./auth-utils");
+          const normalizedEmail = normalizeEmail(credentials.email);
+
+          // Verify the email token (this checks if token exists and is valid)
+          const isValid = await verifyEmailToken(normalizedEmail, credentials.token);
+          if (!isValid) {
+            return null;
+          }
+
+          // Get the user
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, normalizedEmail))
+            .limit(1);
+
+          if (!user) {
+            return null;
+          }
+
+          // Update email_verified and clear the token (since we're using it to sign in)
+          await db
+            .update(users)
+            .set({
+              email_verified: new Date(),
+              email_verification_token: null,
+              email_verification_expires: null,
+            })
+            .where(eq(users.email, normalizedEmail));
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image
+          };
+        } catch (error) {
+          console.error("Error in email verification authorize:", error);
+          return null;
+        }
+      }
+    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -72,8 +130,32 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
+          // Validate and sanitize inputs
+          const sanitizedEmail = sanitizeEmail(credentials.email);
+          if (!sanitizedEmail) {
+            return null;
+          }
+
+          const emailSecurity = validateInputSecurity(sanitizedEmail);
+          if (!emailSecurity.isValid) {
+            return null;
+          }
+
+          // Rate limiting per email (5 attempts per 15 minutes)
+          const emailRateLimit = rateLimit(`signin:${sanitizedEmail}`, 5, 15 * 60 * 1000);
+          if (!emailRateLimit.allowed) {
+            const error = new Error("Too many login attempts. Please try again later.");
+            (error as any).code = "RATE_LIMIT_EXCEEDED";
+            throw error;
+          }
+
+          // Validate password length
+          if (credentials.password.length > 128 || credentials.password.length < 1) {
+            return null;
+          }
+
           const { normalizeEmail, checkAccountLocked, incrementFailedLoginAttempts, resetFailedLoginAttempts } = await import("./auth-utils");
-          const normalizedEmail = normalizeEmail(credentials.email);
+          const normalizedEmail = normalizeEmail(sanitizedEmail);
 
           const [user] = await db
             .select()
@@ -139,15 +221,69 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name;
         token.image = user.image;
       }
+      
+      // Validate user still exists in database (check every time JWT is refreshed)
+      if (token.id) {
+        try {
+          const [existingUser] = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.id, token.id as string))
+            .limit(1);
+          
+          // If user doesn't exist, mark token as invalid by removing id
+          if (!existingUser) {
+            // Remove user data from token to invalidate it
+            delete token.id;
+            delete token.email;
+            delete token.name;
+            delete token.image;
+            token.error = "USER_DELETED";
+            return token;
+          }
+        } catch (error) {
+          console.error("Error validating user in JWT callback:", error);
+          // Remove user data from token on error
+          delete token.id;
+          delete token.email;
+          delete token.name;
+          delete token.image;
+          token.error = "VALIDATION_ERROR";
+          return token;
+        }
+      }
+      
       return token;
     },
     async session({ token, session }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.email = token.email as string;
-        session.user.name = token.name as string;
-        session.user.image = token.image as string;
+      // If token has error flag (user was deleted), return null to invalidate session
+      if (!token || !token.id || (token as any).error) {
+        return null as any;
       }
+      
+      // Double-check user exists in database
+      try {
+        const [existingUser] = await db
+          .select({ id: users.id, email: users.email, name: users.name, image: users.image })
+          .from(users)
+          .where(eq(users.id, token.id as string))
+          .limit(1);
+        
+        // If user doesn't exist, return null to invalidate session
+        if (!existingUser) {
+          return null as any;
+        }
+        
+        // Update session with current user data from database
+        session.user.id = existingUser.id;
+        session.user.email = existingUser.email || null;
+        session.user.name = existingUser.name || null;
+        session.user.image = existingUser.image || null;
+      } catch (error) {
+        console.error("Error validating user in session callback:", error);
+        return null as any; // Invalidate session on error
+      }
+      
       return session;
     },
     async signIn({ user, account }) {

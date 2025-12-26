@@ -15,12 +15,27 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/comp
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const signUpSchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email"),
+  name: z.string()
+    .min(3, "Name must be at least 3 characters")
+    .max(100, "Name must be less than 100 characters")
+    .regex(/^[a-zA-Z\s\-'\.]+$/, "Name can only contain letters, spaces, hyphens, apostrophes, and periods"),
+  email: z.string()
+    .email("Please enter a valid email address")
+    .max(320, "Email address is too long")
+    .toLowerCase()
+    .trim(),
   password: z.string()
     .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Include an uppercase letter")
-    .regex(/[0-9]/, "Include a number"),
+    .max(128, "Password must be less than 128 characters")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password must contain at least one special character")
+    .refine((pwd) => !/(.)\1{3,}/.test(pwd), "Password contains too many repeated characters")
+    .refine((pwd) => {
+      const common = ['password', '12345678', 'qwerty', 'admin', 'letmein', 'welcome'];
+      return !common.some(c => pwd.toLowerCase().includes(c));
+    }, "Password is too common. Please choose a more unique password"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
@@ -82,24 +97,53 @@ export function SignUpForm() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
               <CheckCircle2 className="h-6 w-6 text-green-600" />
             </div>
-            <CardTitle className="text-xl">Check your email</CardTitle>
+            <CardTitle className="text-xl">Account Created Successfully!</CardTitle>
             <CardDescription className="space-y-3">
               <p>
-                We've sent a verification link to <span className="font-semibold text-foreground">{registeredEmail}</span>
+                Your account has been created. {verificationUrl ? (
+                  <>Email verification is available below.</>
+                ) : (
+                  <>Please check your email for verification instructions.</>
+                )}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                You can sign in now, but verifying your email is recommended for account security.
               </p>
               {verificationUrl && (
-                <div className="mt-4 p-3 bg-muted rounded-md border text-left">
-                  <p className="text-xs font-semibold mb-2 text-foreground">🔗 Development Mode - Verification Link:</p>
-                  <a 
-                    href={verificationUrl} 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline break-all block"
-                  >
-                    {verificationUrl}
-                  </a>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Click the link above to verify your email
+                <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md text-left">
+                  <p className="text-xs font-semibold mb-2 text-amber-800 dark:text-amber-200 flex items-center gap-1">
+                    <span>🔗</span> Verification Link
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+                    Copy this link to verify your email (expires in 24 hours):
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs text-primary bg-background p-2 rounded border break-all">
+                      {verificationUrl}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async (e) => {
+                        try {
+                          await navigator.clipboard.writeText(verificationUrl);
+                          const btn = e.currentTarget;
+                          const originalText = btn.textContent;
+                          btn.textContent = "Copied!";
+                          setTimeout(() => {
+                            if (btn) btn.textContent = originalText;
+                          }, 2000);
+                        } catch (err) {
+                          console.error("Failed to copy:", err);
+                        }
+                      }}
+                      className="shrink-0"
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    ⚠️ Keep this link private. You can use the app without verification, but verification is recommended.
                   </p>
                 </div>
               )}
@@ -174,7 +218,9 @@ export function SignUpForm() {
                 type="email" 
                 placeholder="name@example.com" 
                 className="pl-10" 
-                disabled={isLoading} 
+                disabled={isLoading}
+                maxLength={320}
+                autoComplete="email"
               />
             </div>
             {errors.email && <p className="text-[12px] font-medium text-destructive">{errors.email.message}</p>}
@@ -216,6 +262,8 @@ export function SignUpForm() {
               id="confirmPassword"
               type="password"
               disabled={isLoading}
+              maxLength={128}
+              autoComplete="new-password"
             />
             {errors.confirmPassword && <p className="text-[12px] font-medium text-destructive">{errors.confirmPassword.message}</p>}
           </div>

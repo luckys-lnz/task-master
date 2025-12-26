@@ -4,11 +4,18 @@ import { redirect } from "next/navigation";
 import { DashboardClient } from "./page-cli";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { validateUserExists } from "@/lib/auth-utils";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session) {
+  if (!session?.user?.id) {
+    redirect("/auth/signin");
+  }
+
+  // Validate user still exists in database
+  const user = await validateUserExists(session.user.id);
+  if (!user) {
     redirect("/auth/signin");
   }
 

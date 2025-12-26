@@ -8,17 +8,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Icons } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/use-toast";
 
 const profileSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  avatarUrl: z.string().url("Please enter a valid URL").optional(),
-  location: z.string().optional(),
-  bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
+  name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
+  avatarUrl: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -54,13 +52,17 @@ export function ProfileForm({ user }: ProfileFormProps) {
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) throw new Error("Failed to update profile");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update profile");
+      }
 
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
       });
 
+      // Refresh the page to update the session
       router.refresh();
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -86,29 +88,27 @@ export function ProfileForm({ user }: ProfileFormProps) {
         <CardContent className="space-y-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={user.image || ""} alt={user.name || ""} />
+              <AvatarImage src={form.watch("avatarUrl") || user.image || ""} alt={user.name || ""} />
               <AvatarFallback>
-                {user.name?.charAt(0).toUpperCase() || "U"}
+                {form.watch("name")?.charAt(0).toUpperCase() || user.name?.charAt(0).toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
             <div className="space-y-1">
-              <h3 className="font-medium">{user.name}</h3>
+              <h3 className="font-medium">{form.watch("name") || user.name || "User"}</h3>
               <p className="text-sm text-muted-foreground">{user.email}</p>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="text-sm font-medium">
-                Name
-              </label>
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
                 {...form.register("name")}
-                className="mt-1"
+                placeholder="Enter your name"
               />
               {form.formState.errors.name && (
-                <p className="text-sm text-red-500 mt-1">
+                <p className="text-sm text-red-500">
                   {form.formState.errors.name.message}
                 </p>
               )}
@@ -123,42 +123,16 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 {...form.register("avatarUrl")}
                 className="mt-1"
                 placeholder="https://example.com/avatar.jpg"
+                type="url"
               />
               {form.formState.errors.avatarUrl && (
                 <p className="text-sm text-red-500 mt-1">
                   {form.formState.errors.avatarUrl.message}
                 </p>
               )}
-            </div>
-
-            <div>
-              <label htmlFor="location" className="text-sm font-medium">
-                Location
-              </label>
-              <Input
-                id="location"
-                {...form.register("location")}
-                className="mt-1"
-                placeholder="City, Country"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="bio" className="text-sm font-medium">
-                Bio
-              </label>
-              <Textarea
-                id="bio"
-                {...form.register("bio")}
-                className="mt-1"
-                placeholder="Tell us about yourself..."
-                rows={4}
-              />
-              {form.formState.errors.bio && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.bio.message}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter a URL to your profile picture
+              </p>
             </div>
           </div>
         </CardContent>

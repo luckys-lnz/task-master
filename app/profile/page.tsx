@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CalendarDays, Mail, MapPin, Edit } from "lucide-react"
 import { ProfileEditForm } from "@/components/profile-edit-form"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { format } from "date-fns"
 
 interface UserStats {

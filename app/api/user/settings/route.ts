@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getValidatedSession } from "@/lib/validate-session";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -16,14 +15,7 @@ const userSettingsSchema = z.object({
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const session = await getValidatedSession();
 
     const userSettings = await db.query.users.findFirst({
       where: eq(users.id, session.user.id),
@@ -48,14 +40,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const session = await getValidatedSession();
 
     const json = await req.json();
     const body = userSettingsSchema.parse(json);

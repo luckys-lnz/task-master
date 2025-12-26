@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import type { Task } from "../lib/types"
-import { useToast } from "../hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 
 // Replace localStorage operations with API interactions
 export function useDatabaseTodos() {

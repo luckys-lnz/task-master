@@ -5,8 +5,8 @@
 
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { users, verificationTokens } from "./db/schema";
-import { eq, and, gt, lt } from "drizzle-orm";
+import { users } from "./db/schema";
+import { eq, and, gt } from "drizzle-orm";
 
 /**
  * Normalize email address (lowercase, trim)
@@ -16,26 +16,29 @@ export function normalizeEmail(email: string): string {
 }
 
 /**
+ * Validate that a user exists in the database
+ * Returns the user if found, null otherwise
+ */
+export async function validateUserExists(userId: string) {
+  try {
+    const [user] = await db
+      .select({ id: users.id, email: users.email, name: users.name, image: users.image })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    return user || null;
+  } catch (error) {
+    console.error("Error validating user existence:", error);
+    return null;
+  }
+}
+
+/**
  * Generate a secure random token
  */
 export function generateToken(length: number = 32): string {
   return randomBytes(length).toString("hex");
-}
-
-/**
- * Clean up expired verification tokens
- */
-export async function cleanupExpiredVerificationTokens(): Promise<void> {
-  try {
-    const now = new Date();
-    // Delete tokens where expires < now (expired tokens)
-    await db
-      .delete(verificationTokens)
-      .where(lt(verificationTokens.expires, now));
-  } catch (error) {
-    // Silently fail - this is a cleanup operation
-    console.error("Error cleaning up expired tokens:", error);
-  }
 }
 
 /**
@@ -48,22 +51,14 @@ export async function generateEmailVerificationToken(
   const expires = new Date();
   expires.setHours(expires.getHours() + 24); // 24 hours expiry
 
-  // Clean up expired tokens periodically (10% chance to avoid overhead)
-  if (Math.random() < 0.1) {
-    await cleanupExpiredVerificationTokens();
-  }
-
-  // Delete any existing tokens for this email
+  // Store token in users table (similar to password reset tokens)
   await db
-    .delete(verificationTokens)
-    .where(eq(verificationTokens.identifier, email));
-
-  // Insert new token
-  await db.insert(verificationTokens).values({
-    identifier: email,
-    token,
-    expires,
-  });
+    .update(users)
+    .set({
+      email_verification_token: token,
+      email_verification_expires: expires,
+    })
+    .where(eq(users.email, email));
 
   return token;
 }
@@ -76,19 +71,29 @@ export async function verifyEmailToken(
   token: string
 ): Promise<boolean> {
   try {
-    const [verificationToken] = await db
-      .select()
-      .from(verificationTokens)
-      .where(
-        and(
-          eq(verificationTokens.identifier, email),
-          eq(verificationTokens.token, token),
-          gt(verificationTokens.expires, new Date())
-        )
-      )
+    const [user] = await db
+      .select({
+        email_verification_token: users.email_verification_token,
+        email_verification_expires: users.email_verification_expires,
+      })
+      .from(users)
+      .where(eq(users.email, email))
       .limit(1);
 
-    return !!verificationToken;
+    if (!user || !user.email_verification_token || !user.email_verification_expires) {
+      return false;
+    }
+
+    // Check if token matches and hasn't expired
+    if (user.email_verification_token !== token) {
+      return false;
+    }
+
+    if (user.email_verification_expires <= new Date()) {
+      return false;
+    }
+
+    return true;
   } catch (error) {
     console.error("Error verifying email token:", error);
     return false;

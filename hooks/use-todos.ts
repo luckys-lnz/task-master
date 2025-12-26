@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 // Update the path below to the actual location of your types file
 import type { Task } from "../lib/types"
 // Update the path below if your use-toast hook is in a different location
-import { useToast } from "../hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 
 // For offline support
 const STORAGE_KEY = "taskmaster-todos"

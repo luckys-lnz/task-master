@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"  // Added useMemo
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { TodoItem } from "@/components/task-item"
 import { AddTodoForm } from "@/components/add-task-form"
 import { Button } from "@/components/ui/button"

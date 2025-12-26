@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getValidatedSession } from "@/lib/validate-session";
 import { db } from "@/lib/db";
 import { tasks, subtasks } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import * as z from "zod";
-import { handleApiError, UnauthorizedError } from "@/lib/errors";
+import { handleApiError } from "@/lib/errors";
+import { mapTaskToCamelCase } from "@/lib/utils";
 
 const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -19,17 +19,14 @@ const taskSchema = z.object({
   attachments: z.array(z.string()).optional(),
   subtasks: z.array(z.object({
     title: z.string(),
-    is_completed: z.boolean()
+    completed: z.boolean().optional().default(false)
   })).optional(),
 });
 
 // GET /api/tasks - Get all tasks for the current user
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      throw new UnauthorizedError();
-    }
+    const session = await getValidatedSession();
 
     const userTasks = await db.query.tasks.findMany({
       where: eq(tasks.user_id, session.user.id),
@@ -39,16 +36,7 @@ export async function GET() {
       },
     });
 
-    // Map DB fields to camelCase for frontend
-    function mapTaskDbFieldsToCamelCase(taskFromDb: any) {
-      return {
-        ...taskFromDb,
-        dueDate: taskFromDb.due_date,
-        dueTime: taskFromDb.due_time,
-      };
-    }
-
-    const tasksForFrontend = userTasks.map(mapTaskDbFieldsToCamelCase);
+    const tasksForFrontend = userTasks.map(mapTaskToCamelCase);
 
     return NextResponse.json(tasksForFrontend);
   } catch (error) {
@@ -59,10 +47,7 @@ export async function GET() {
 // POST /api/tasks - Create a new task
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      throw new UnauthorizedError();
-    }
+    const session = await getValidatedSession();
 
     const json = await req.json();
     // Accept both camelCase and snake_case from frontend
@@ -103,7 +88,7 @@ export async function POST(req: Request) {
         body.subtasks.map(st => ({
           task_id: newTask.id,
           title: st.title,
-          is_completed: st.is_completed,
+          completed: st.completed || false,
         }))
       );
     }
@@ -114,16 +99,7 @@ export async function POST(req: Request) {
       with: { subtasks: true },
     });
 
-    // Map DB fields to camelCase for frontend
-    function mapTaskDbFieldsToCamelCase(taskFromDb: any) {
-      return {
-        ...taskFromDb,
-        dueDate: taskFromDb.due_date,
-        dueTime: taskFromDb.due_time,
-      };
-    }
-
-    return NextResponse.json(mapTaskDbFieldsToCamelCase(taskWithSubtasks), { status: 201 });
+    return NextResponse.json(mapTaskToCamelCase(taskWithSubtasks), { status: 201 });
   } catch (error) {
     return handleApiError(error);
   }

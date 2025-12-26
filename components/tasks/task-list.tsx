@@ -6,7 +6,7 @@ import { TaskCard } from "./task-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Icons } from "@/components/ui/icons";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { NotificationService } from "@/lib/services/notifications";
 
 export function TaskList() {

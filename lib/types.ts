@@ -18,7 +18,6 @@ export interface Task {
   attachments?: string[];
   createdAt: string;
   updatedAt?: string;
-  is_completed: boolean;
 }
 
 

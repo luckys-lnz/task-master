@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getValidatedSession } from "@/lib/validate-session";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import * as z from "zod";
+import { handleApiError } from "@/lib/errors";
 
 const reorderSchema = z.object({
   items: z.array(z.object({
@@ -15,25 +15,19 @@ const reorderSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const session = await getValidatedSession();
+    const userId = session.user.id;
 
     const json = await req.json();
     const { items } = reorderSchema.parse(json);
 
-    // Update each task's position
+    // Update each task's position (only for user's own tasks)
     await Promise.all(
       items.map(({ id, position }) =>
         db
           .update(tasks)
           .set({ position: position.toString() })
-          .where(eq(tasks.id, id))
+          .where(and(eq(tasks.id, id), eq(tasks.user_id, userId)))
       )
     );
 
@@ -42,16 +36,6 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error reordering tasks:", error);
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors },
-        { status: 400 }
-      );
-    }
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 } 

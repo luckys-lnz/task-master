@@ -1,18 +1,25 @@
 import { TaskForm } from '@/app/components/task-form'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { tasks } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { format } from 'date-fns'
+import { validateUserExists } from '@/lib/auth-utils'
 
 export default async function TasksPage() {
   const session = await getServerSession(authOptions)
-  // Type assertion to include 'id' on user
-  const userId = session && (session.user as typeof session.user & { id?: string })?.id
+  const userId = session?.user?.id
 
   if (!userId) {
-    return <div>Please sign in to view tasks</div>
+    redirect('/auth/signin')
+  }
+
+  // Validate user still exists in database
+  const user = await validateUserExists(userId)
+  if (!user) {
+    redirect('/auth/signin')
   }
 
   const userTasks = await db.select().from(tasks).where(eq(tasks.user_id, userId))
@@ -46,11 +53,11 @@ export default async function TasksPage() {
                     {task.priority}
                   </span>
                   <span className={`px-2 py-1 rounded-full text-xs ${
-                    task.is_completed
+                    task.completed
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100'
                       : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'
                   }`}>
-                    {task.is_completed ? 'done' : 'in-progress'}
+                    {task.completed ? 'done' : 'in-progress'}
                   </span>
                 </div>
                 {task.due_date && (

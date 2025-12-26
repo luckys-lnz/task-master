@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getValidatedSession } from "@/lib/validate-session";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import * as z from "zod";
-import { handleApiError, UnauthorizedError } from "@/lib/errors";
+import { handleApiError } from "@/lib/errors";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -16,11 +15,7 @@ const profileSchema = z.object({
 
 export async function PATCH(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      throw new UnauthorizedError();
-    }
+    const session = await getValidatedSession();
 
     const json = await req.json();
     const body = profileSchema.parse(json);
@@ -28,13 +23,16 @@ export async function PATCH(req: Request) {
     const updatedUser = await db.update(users)
       .set({
         name: body.name,
-        avatar_url: body.avatarUrl,
-        // updated_at: new Date(),
+        avatar_url: body.avatarUrl || null,
+        image: body.avatarUrl || null, // Also update image field for NextAuth compatibility
       })
       .where(eq(users.id, session.user.id))
       .returning();
 
-    return NextResponse.json(updatedUser[0]);
+    return NextResponse.json({
+      ...updatedUser[0],
+      message: "Profile updated successfully"
+    });
   } catch (error) {
     return handleApiError(error);
   }

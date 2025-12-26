@@ -45,13 +45,12 @@ export async function sendVerificationEmail(
  */
 async function sendViaResend(email: string, verificationUrl: string): Promise<EmailResult> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn("⚠️  RESEND_API_KEY not configured. Email will not be sent.");
-    console.warn("⚠️  To enable email sending, add RESEND_API_KEY to your environment variables.");
-    console.warn("⚠️  See RESEND_SETUP.md for instructions.");
-    console.log(`📧 Verification Email to ${email}: ${verificationUrl}`);
+    // In development, log the verification URL
+    if (process.env.NODE_ENV === "development") {
+      console.log(`📧 Verification Email to ${email}: ${verificationUrl}`);
+    }
     return {
       success: false,
-      error: "Email service not configured. Please set RESEND_API_KEY environment variable.",
       verificationUrl,
     };
   }
@@ -137,12 +136,12 @@ export async function sendPasswordResetEmail(
  */
 async function sendPasswordResetViaResend(email: string, resetUrl: string): Promise<EmailResult> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn("⚠️  RESEND_API_KEY not configured. Email will not be sent.");
-    console.warn("⚠️  To enable email sending, add RESEND_API_KEY to your environment variables.");
-    console.log(`📧 Password Reset Email to ${email}: ${resetUrl}`);
+    // In development, log the reset URL
+    if (process.env.NODE_ENV === "development") {
+      console.log(`📧 Password Reset Email to ${email}: ${resetUrl}`);
+    }
     return {
       success: false,
-      error: "Email service not configured. Please set RESEND_API_KEY environment variable.",
       verificationUrl: resetUrl,
     };
   }

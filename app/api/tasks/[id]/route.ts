@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getValidatedSession } from "@/lib/validate-session";
 import { db } from "@/lib/db";
 import { tasks, subtasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { authOptions } from "@/lib/auth";
 import { z } from "zod";
+import { mapTaskToCamelCase } from "@/lib/utils";
 
 const updateTaskSchema = z.object({
   title: z.string(),
@@ -30,15 +30,10 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
-
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const session = await getValidatedSession();
+    const userId = session.user.id;
 
     const body = await req.json();
-    console.log("Received update data:", body);
 
     // Add task_id to subtasks before validation
     if (body.subtasks) {
@@ -58,7 +53,6 @@ export async function PATCH(
     }
 
     const validatedData = updateTaskSchema.parse(body);
-    console.log("Validated data:", validatedData);
 
     await db
       .update(tasks)
@@ -87,15 +81,7 @@ export async function PATCH(
       with: { subtasks: true }
     });
 
-    function mapTaskDbFieldsToCamelCase(taskFromDb: any) {
-      return {
-        ...taskFromDb,
-        dueDate: taskFromDb.due_date,
-        dueTime: taskFromDb.due_time,
-      };
-    }
-
-    return NextResponse.json(mapTaskDbFieldsToCamelCase(updatedTask));
+    return NextResponse.json(mapTaskToCamelCase(updatedTask));
   } catch (error) {
     console.error("Task update error:", error);
     
@@ -119,12 +105,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
-
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const session = await getValidatedSession();
+    const userId = session.user.id;
 
     // Optionally, delete subtasks first if not using ON DELETE CASCADE
     await db.delete(subtasks).where(eq(subtasks.task_id, params.id));
@@ -141,7 +123,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Task delete error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }

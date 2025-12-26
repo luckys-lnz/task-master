@@ -37,14 +37,14 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
   const [subtasks, setSubtasks] = useState<Array<{
     id: string;
     title: string;
-    is_completed: boolean;
+    completed: boolean;
   }>>([])
   const [attachments, setAttachments] = useState<File[]>([])
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("")
 
   const handleAddSubtask = () => {
     if (newSubtaskTitle.trim()) {
-      setSubtasks([...subtasks, { id: uuidv4(), title: newSubtaskTitle.trim(), is_completed: false }])
+      setSubtasks([...subtasks, { id: uuidv4(), title: newSubtaskTitle.trim(), completed: false }])
       setNewSubtaskTitle("")
     }
   }
@@ -76,7 +76,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
       subtasks: subtasks.map(st => ({
         id: st.id,
         title: st.title,
-        completed: st.is_completed,
+        completed: st.completed,
         task_id: task?.id ?? ""
       })),
       attachments: undefined
@@ -198,12 +198,12 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                   <div key={subtask.id} className="flex items-center gap-2">
                     <Input
                       type="checkbox"
-                      checked={subtask.is_completed}
+                      checked={subtask.completed}
                       onChange={() => {
                         const newSubtasks = [...subtasks]
                         const idx = newSubtasks.findIndex(st => st.id === subtask.id)
                         if (idx !== -1) {
-                          newSubtasks[idx].is_completed = !newSubtasks[idx].is_completed
+                          newSubtasks[idx].completed = !newSubtasks[idx].completed
                           setSubtasks(newSubtasks)
                         }
                       }}
