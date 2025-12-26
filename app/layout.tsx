@@ -9,6 +9,7 @@ import type { Metadata } from 'next';
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import { LoadingScreen } from "@/components/loading-screen";
+import { PageTransition } from "@/components/page-transition";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,11 +18,11 @@ export const metadata: Metadata = {
   description: 'A modern task management application',
   icons: {
     icon: [
-      { url: '/icon.png', sizes: '32x32', type: 'image/png' },
-      { url: '/icon.png', sizes: '16x16', type: 'image/png' },
+      { url: '/logo.png', sizes: '32x32', type: 'image/png' },
+      { url: '/logo.png', sizes: '16x16', type: 'image/png' },
     ],
-    shortcut: '/icon.png',
-    apple: '/icon.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
   },
 };
 
@@ -29,8 +30,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" type="image/png" href="/icon.png" />
-        <link rel="apple-touch-icon" href="/icon.png" />
+        <link rel="icon" type="image/png" href="/logo.png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
       </head>
       <body className={`${inter.className} antialiased min-h-screen bg-background text-foreground`} suppressHydrationWarning>
         <ThemeProvider
@@ -54,7 +55,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </header>
             <main className="w-full">
-              {children}
+              <PageTransition>
+                {children}
+              </PageTransition>
             </main>
           </AuthSessionProvider>
         </ThemeProvider>

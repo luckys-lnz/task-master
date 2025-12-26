@@ -53,10 +53,43 @@ const config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      fontSize: {
+        xs: ["var(--font-size-xs)", { lineHeight: "var(--leading-tight)" }],
+        sm: ["var(--font-size-sm)", { lineHeight: "var(--leading-normal)" }],
+        base: ["var(--font-size-base)", { lineHeight: "var(--leading-normal)" }],
+        lg: ["var(--font-size-lg)", { lineHeight: "var(--leading-normal)" }],
+        xl: ["var(--font-size-xl)", { lineHeight: "var(--leading-normal)" }],
+        "2xl": ["var(--font-size-2xl)", { lineHeight: "var(--leading-tight)" }],
+        "3xl": ["var(--font-size-3xl)", { lineHeight: "var(--leading-tight)" }],
+        "4xl": ["var(--font-size-4xl)", { lineHeight: "var(--leading-tight)" }],
+        "5xl": ["2.5rem", { lineHeight: "var(--leading-tight)" }], /* 40px - extra large */
+        "6xl": ["3rem", { lineHeight: "var(--leading-tight)" }], /* 48px - display */
+        "7xl": ["3.75rem", { lineHeight: "var(--leading-tight)" }], /* 60px - hero */
+      },
+      lineHeight: {
+        tight: "var(--leading-tight)",
+        normal: "var(--leading-normal)",
+        relaxed: "var(--leading-relaxed)",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      spacing: {
+        "0": "var(--space-0)",
+        "1": "var(--space-1)",
+        "2": "var(--space-2)",
+        "3": "var(--space-3)",
+        "4": "var(--space-4)",
+        "5": "var(--space-5)",
+        "6": "var(--space-6)",
+        "8": "var(--space-8)",
+        "10": "var(--space-10)",
+        "12": "var(--space-12)",
+        "16": "var(--space-16)",
+        "20": "var(--space-20)",
+        "24": "var(--space-24)",
       },
       keyframes: {
         "accordion-down": {

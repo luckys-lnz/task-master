@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import * as React from "react"
 import { format } from "date-fns"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,8 @@ import type { Task, Subtask as BaseSubtask } from "@/lib/types"
 import { Calendar, Trash2, Edit, ChevronDown, ChevronUp, GripVertical, Plus } from "lucide-react"
 import { TaskEditor } from "@/components/task-editor"
 import {SubtaskList} from "@/components/subtask-list"
+import { cn } from "@/lib/utils"
+import { Confetti } from "@/components/confetti"
 
 type SubtaskWithTaskId = BaseSubtask & { task_id: string }
 
@@ -26,7 +29,10 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isExpired, setIsExpired] = useState(false)
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("")
+  const [justCompleted, setJustCompleted] = React.useState(false)
+  const [showConfetti, setShowConfetti] = React.useState(false)
   const notificationRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const prevCompletedRef = React.useRef(todo.completed)
 
   // Check if task is expired
   useEffect(() => {
@@ -136,6 +142,18 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
     })
   }
 
+  React.useEffect(() => {
+    if (!prevCompletedRef.current && todo.completed) {
+      setJustCompleted(true)
+      setShowConfetti(true)
+      setTimeout(() => {
+        setJustCompleted(false)
+        setShowConfetti(false)
+      }, 600)
+    }
+    prevCompletedRef.current = todo.completed
+  }, [todo.completed])
+
   if (isEditing) {
     return (
       <TaskEditor
@@ -150,15 +168,34 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
   }
 
   return (
-    <Card className={`shadow-sm transition-all duration-300 ${isExpired ? "border-red-500 dark:border-red-700" : ""}`}>
+    <>
+      <Confetti trigger={showConfetti} duration={1500} particleCount={30} />
+      <Card 
+        className={cn(
+          "shadow-sm transition-spring hover-lift group",
+          isExpired && "border-red-500 dark:border-red-700",
+          todo.completed && "opacity-75",
+          justCompleted && "animate-in fade-in slide-in-from-bottom-2"
+        )}
+        style={{
+          transitionTimingFunction: "var(--spring-ease-out)",
+        }}
+      >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <div className="flex items-center h-5 mt-1">
-            <GripVertical className="h-4 w-4 text-muted-foreground mr-2" />
+            <GripVertical className="h-4 w-4 text-muted-foreground mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             <Checkbox
               checked={todo.completed}
-              onCheckedChange={(checked) => onUpdate(todo.id, { completed: !!checked })}
+              onCheckedChange={(checked) => {
+                onUpdate(todo.id, { completed: !!checked });
+              }}
               id={`todo-${todo.id}`}
+              className={cn(
+                "transition-spring-fast",
+                "hover:scale-110 active:scale-95",
+                todo.completed && "data-[state=checked]:spring-bounce"
+              )}
             />
           </div>
           <div className="flex-1 min-w-0">
@@ -265,15 +302,26 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
         </div>
       </CardContent>
       <CardFooter className="px-4 py-2 flex justify-end gap-2 bg-muted/50">
-        <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-          <Edit className="h-4 w-4 mr-1" />
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setIsEditing(true)}
+          className="hover-scale transition-smooth hover:bg-accent"
+        >
+          <Edit className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
           Edit
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => onDelete(todo.id)}>
-          <Trash2 className="h-4 w-4 mr-1" />
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => onDelete(todo.id)}
+          className="hover-scale transition-smooth hover:bg-destructive/10 hover:text-destructive shake-on-hover"
+        >
+          <Trash2 className="h-4 w-4 mr-1 transition-transform duration-200 hover:scale-110" />
           Delete
         </Button>
       </CardFooter>
     </Card>
+    </>
   )
 }

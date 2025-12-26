@@ -205,7 +205,7 @@ export function SignUpForm() {
                 disabled={isLoading} 
               />
             </div>
-            {errors.name && <p className="text-[12px] font-medium text-destructive">{errors.name.message}</p>}
+            {errors.name && <p className="text-xs font-medium text-destructive">{errors.name.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -223,7 +223,7 @@ export function SignUpForm() {
                 autoComplete="email"
               />
             </div>
-            {errors.email && <p className="text-[12px] font-medium text-destructive">{errors.email.message}</p>}
+            {errors.email && <p className="text-xs font-medium text-destructive">{errors.email.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -252,7 +252,7 @@ export function SignUpForm() {
                  }`} />
                ))}
             </div>
-            {errors.password && <p className="text-[12px] font-medium text-destructive">{errors.password.message}</p>}
+            {errors.password && <p className="text-xs font-medium text-destructive">{errors.password.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -265,7 +265,7 @@ export function SignUpForm() {
               maxLength={128}
               autoComplete="new-password"
             />
-            {errors.confirmPassword && <p className="text-[12px] font-medium text-destructive">{errors.confirmPassword.message}</p>}
+            {errors.confirmPassword && <p className="text-xs font-medium text-destructive">{errors.confirmPassword.message}</p>}
           </div>
         </div>
 

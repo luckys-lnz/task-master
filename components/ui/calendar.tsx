@@ -54,7 +54,7 @@ function Calendar({
           // Responsive table layout
           table: "w-full border-collapse space-y-1.5 sm:space-y-1",
           head_row: "flex mb-1 sm:mb-1.5",
-          head_cell: "text-muted-foreground rounded-sm w-9 sm:w-10 font-normal text-xs sm:text-[0.8rem] uppercase tracking-wider px-1 sm:px-0.5",
+          head_cell: "text-muted-foreground rounded-sm w-9 sm:w-10 font-normal text-xs uppercase tracking-wider px-1 sm:px-0.5",
           
           row: "flex w-full mt-1 sm:mt-2 h-9 sm:h-10",
           

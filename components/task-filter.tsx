@@ -9,7 +9,7 @@ interface TodoFilterProps {
 
 export function TodoFilter({ onFilterChange, currentFilter }: TodoFilterProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 transition-spring-fast">
       <Tabs
         defaultValue="active"
         value={currentFilter.status} // Added this to ensure highlighting matches current status
@@ -18,7 +18,7 @@ export function TodoFilter({ onFilterChange, currentFilter }: TodoFilterProps) {
           onFilterChange({ ...currentFilter, status: value })
         }}
       >
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 transition-spring-fast">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
