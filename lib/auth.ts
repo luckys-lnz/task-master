@@ -88,7 +88,10 @@ export const authOptions: NextAuthOptions = {
           // Check for account lockout
           const isLocked = await checkAccountLocked(normalizedEmail);
           if (isLocked) {
-            throw new Error("Account is temporarily locked due to too many failed login attempts. Please try again later.");
+            // Create error with specific code for NextAuth to handle
+            const error = new Error("Account is temporarily locked due to too many failed login attempts. Please try again later.");
+            (error as any).code = "ACCOUNT_LOCKED";
+            throw error;
           }
 
           const isCorrectPassword = await compare(
@@ -102,6 +105,12 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
+          // Check if email is verified (optional - you can make this required)
+          // For now, we'll allow unverified users but could add a check here
+          // if (!user.email_verified) {
+          //   throw new Error("Please verify your email address before signing in. Check your inbox for the verification link.");
+          // }
+
           // Reset failed login attempts on successful login
           await resetFailedLoginAttempts(normalizedEmail);
 
@@ -113,13 +122,17 @@ export const authOptions: NextAuthOptions = {
           };
         } catch (error) {
           console.error("Error during authentication:", error);
+          // Re-throw specific errors so NextAuth can handle them
+          if (error instanceof Error && (error as any).code === "ACCOUNT_LOCKED") {
+            throw error;
+          }
           return null;
         }
       }
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;

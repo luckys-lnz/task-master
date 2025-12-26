@@ -6,7 +6,7 @@
 import { randomBytes } from "crypto";
 import { db } from "./db";
 import { users, verificationTokens } from "./db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, lt } from "drizzle-orm";
 
 /**
  * Normalize email address (lowercase, trim)
@@ -23,6 +23,22 @@ export function generateToken(length: number = 32): string {
 }
 
 /**
+ * Clean up expired verification tokens
+ */
+export async function cleanupExpiredVerificationTokens(): Promise<void> {
+  try {
+    const now = new Date();
+    // Delete tokens where expires < now (expired tokens)
+    await db
+      .delete(verificationTokens)
+      .where(lt(verificationTokens.expires, now));
+  } catch (error) {
+    // Silently fail - this is a cleanup operation
+    console.error("Error cleaning up expired tokens:", error);
+  }
+}
+
+/**
  * Generate email verification token
  */
 export async function generateEmailVerificationToken(
@@ -31,6 +47,11 @@ export async function generateEmailVerificationToken(
   const token = generateToken();
   const expires = new Date();
   expires.setHours(expires.getHours() + 24); // 24 hours expiry
+
+  // Clean up expired tokens periodically (10% chance to avoid overhead)
+  if (Math.random() < 0.1) {
+    await cleanupExpiredVerificationTokens();
+  }
 
   // Delete any existing tokens for this email
   await db
@@ -48,25 +69,30 @@ export async function generateEmailVerificationToken(
 }
 
 /**
- * Verify email verification token
+ * Verify email verification token and return token data if valid
  */
 export async function verifyEmailToken(
   email: string,
   token: string
 ): Promise<boolean> {
-  const [verificationToken] = await db
-    .select()
-    .from(verificationTokens)
-    .where(
-      and(
-        eq(verificationTokens.identifier, email),
-        eq(verificationTokens.token, token),
-        gt(verificationTokens.expires, new Date())
+  try {
+    const [verificationToken] = await db
+      .select()
+      .from(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.identifier, email),
+          eq(verificationTokens.token, token),
+          gt(verificationTokens.expires, new Date())
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  return !!verificationToken;
+    return !!verificationToken;
+  } catch (error) {
+    console.error("Error verifying email token:", error);
+    return false;
+  }
 }
 
 /**

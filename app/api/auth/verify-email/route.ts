@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { users, verificationTokens } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 import { verifyEmailToken, normalizeEmail } from "@/lib/auth-utils";
 import { handleApiError, ValidationError } from "@/lib/errors";
 import * as z from "zod";
@@ -24,13 +24,23 @@ export async function POST(req: Request) {
       throw new ValidationError("Invalid or expired verification token");
     }
 
-    // Update user email_verified
+    // Update user email_verified and clean up the token
     await db
       .update(users)
       .set({
         email_verified: new Date(),
       })
       .where(eq(users.email, normalizedEmail));
+
+    // Delete the used verification token
+    await db
+      .delete(verificationTokens)
+      .where(
+        and(
+          eq(verificationTokens.identifier, normalizedEmail),
+          eq(verificationTokens.token, body.token)
+        )
+      );
 
     return NextResponse.json(
       { message: "Email verified successfully" },

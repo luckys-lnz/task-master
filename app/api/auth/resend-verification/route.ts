@@ -51,15 +51,25 @@ export async function POST(req: Request) {
     const token = await generateEmailVerificationToken(normalizedEmail);
 
     // Send verification email
+    let emailResult;
     try {
-      await sendVerificationEmail(user.email!, token);
+      emailResult = await sendVerificationEmail(user.email!, token);
+      if (!emailResult.success && emailResult.error) {
+        console.error("Failed to send verification email:", emailResult.error);
+      }
     } catch (error) {
       console.error("Failed to send verification email:", error);
-      throw new ValidationError("Failed to send verification email. Please try again later.");
+      emailResult = { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
 
     return NextResponse.json(
-      { message: "Verification email sent" },
+      { 
+        message: "Verification email sent",
+        // Include verification URL in development for easy testing
+        ...(process.env.NODE_ENV === "development" && emailResult?.verificationUrl && {
+          verificationUrl: emailResult.verificationUrl,
+        })
+      },
       { status: 200 }
     );
   } catch (error) {

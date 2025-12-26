@@ -54,7 +54,16 @@ function SignInFormContent() {
       });
 
       if (result?.error) {
-        setServerError("Invalid email or password");
+        // Provide more specific error messages
+        if (result.error === "CredentialsSignin") {
+          setServerError("Invalid email or password");
+        } else if (result.error.includes("locked")) {
+          setServerError("Account is temporarily locked due to too many failed login attempts. Please try again later.");
+        } else if (result.error.includes("verify")) {
+          setServerError("Please verify your email address before signing in. Check your inbox for the verification link.");
+        } else {
+          setServerError(result.error || "Invalid email or password");
+        }
       } else {
         router.push("/dashboard");
         router.refresh();

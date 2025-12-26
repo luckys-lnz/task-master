@@ -64,12 +64,18 @@ export async function POST(req: Request) {
       .returning();
 
     // Generate and send verification email
+    let emailResult;
     try {
       const token = await generateEmailVerificationToken(normalizedEmail);
-      await sendVerificationEmail(normalizedEmail, token);
+      emailResult = await sendVerificationEmail(normalizedEmail, token);
+      
+      if (!emailResult.success && emailResult.error) {
+        console.error("Failed to send verification email:", emailResult.error);
+      }
     } catch (error) {
       // Log error but don't fail registration
       console.error("Failed to send verification email:", error);
+      emailResult = { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
 
     return NextResponse.json(
@@ -79,7 +85,12 @@ export async function POST(req: Request) {
           name: newUser.name,
           email: newUser.email
         },
-        message: "Account created successfully. Please check your email to verify your account."
+        message: "Account created successfully. Please check your email to verify your account.",
+        // Include verification URL in development for easy testing
+        ...(process.env.NODE_ENV === "development" && emailResult?.verificationUrl && {
+          verificationUrl: emailResult.verificationUrl,
+          note: "In development mode, use the verification URL above to verify your email."
+        })
       },
       { status: 201 }
     );
