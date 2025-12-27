@@ -68,23 +68,46 @@ export function ProfileForm({ user }: ProfileFormProps) {
       // Determine avatarUrl - prefer state value, then form value, or undefined
       const finalAvatarUrl = avatarUrl || (data.avatarUrl && data.avatarUrl.trim() ? data.avatarUrl.trim() : undefined);
 
+      const requestBody = {
+        name: trimmedName,
+        ...(finalAvatarUrl !== undefined && finalAvatarUrl !== null && finalAvatarUrl !== "" 
+          ? { avatarUrl: finalAvatarUrl } 
+          : {}),
+      };
+
+      // Log request for debugging
+      console.log("Profile update request:", requestBody);
+
       const response = await fetch("/api/user/profile", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: trimmedName,
-          ...(finalAvatarUrl !== undefined && finalAvatarUrl !== null && finalAvatarUrl !== "" 
-            ? { avatarUrl: finalAvatarUrl } 
-            : {}),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (jsonError) {
+          // If response is not JSON, get text instead
+          const text = await response.text();
+          console.error("Non-JSON error response:", text);
+          throw new Error(`Failed to update profile: ${response.status} ${response.statusText}`);
+        }
+        
+        // Log full error details for debugging
+        console.error("Profile update error response:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+        });
+        
         const errorMessage = errorData.details 
-          ? errorData.details.map((d: { message: string }) => d.message).join(", ")
+          ? errorData.details.map((d: { message: string; path?: string }) => 
+              `${d.path ? `${d.path}: ` : ""}${d.message}`
+            ).join(", ")
           : errorData.error || "Failed to update profile";
         throw new Error(errorMessage);
       }

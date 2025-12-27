@@ -31,7 +31,10 @@ export async function PATCH(req: Request) {
     let json;
     try {
       const text = await req.text();
+      console.log("Received request body text:", text);
+      
       if (!text || text.trim().length === 0) {
+        console.error("Empty request body");
         return NextResponse.json(
           {
             error: "Request body is required",
@@ -41,6 +44,7 @@ export async function PATCH(req: Request) {
         );
       }
       json = JSON.parse(text);
+      console.log("Parsed JSON:", json);
     } catch (parseError) {
       console.error("Failed to parse request body:", parseError);
       return NextResponse.json(
