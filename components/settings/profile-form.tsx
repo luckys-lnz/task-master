@@ -15,7 +15,7 @@ import { Icons } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/use-toast";
 
 const profileSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
+  name: z.string().min(3, "Display name must be at least 3 characters").max(100, "Name must be less than 100 characters"),
   avatarUrl: z.string().optional(),
 });
 
@@ -59,8 +59,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: data.name,
-          avatarUrl: avatarUrl || data.avatarUrl || null,
+          name: data.name.trim(),
+          avatarUrl: avatarUrl || data.avatarUrl || undefined,
         }),
       });
 
