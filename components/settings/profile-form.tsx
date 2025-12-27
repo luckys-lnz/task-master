@@ -53,20 +53,40 @@ export function ProfileForm({ user }: ProfileFormProps) {
     setIsLoading(true);
 
     try {
+      // Prepare the request body
+      const trimmedName = data.name.trim();
+      if (trimmedName.length < 3) {
+        toast({
+          title: "Validation Error",
+          description: "Display name must be at least 3 characters",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Determine avatarUrl - prefer state value, then form value, or undefined
+      const finalAvatarUrl = avatarUrl || (data.avatarUrl && data.avatarUrl.trim() ? data.avatarUrl.trim() : undefined);
+
       const response = await fetch("/api/user/profile", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: data.name.trim(),
-          avatarUrl: avatarUrl || data.avatarUrl || undefined,
+          name: trimmedName,
+          ...(finalAvatarUrl !== undefined && finalAvatarUrl !== null && finalAvatarUrl !== "" 
+            ? { avatarUrl: finalAvatarUrl } 
+            : {}),
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update profile");
+        const errorMessage = errorData.details 
+          ? errorData.details.map((d: { message: string }) => d.message).join(", ")
+          : errorData.error || "Failed to update profile";
+        throw new Error(errorMessage);
       }
 
       toast({

@@ -27,12 +27,68 @@ export async function PATCH(req: Request) {
   try {
     const session = await getValidatedSession();
 
-    const json = await req.json();
-    const body = profileSchema.parse(json);
+    // Parse request body with better error handling
+    let json;
+    try {
+      const text = await req.text();
+      if (!text || text.trim().length === 0) {
+        return NextResponse.json(
+          {
+            error: "Request body is required",
+            code: "INVALID_REQUEST",
+          },
+          { status: 400 }
+        );
+      }
+      json = JSON.parse(text);
+    } catch (parseError) {
+      console.error("Failed to parse request body:", parseError);
+      return NextResponse.json(
+        {
+          error: "Invalid request body. Expected valid JSON.",
+          code: "INVALID_REQUEST",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate request body
+    let body;
+    try {
+      body = profileSchema.parse(json);
+    } catch (validationError) {
+      console.error("Validation error:", validationError);
+      if (validationError instanceof z.ZodError) {
+        return NextResponse.json(
+          {
+            error: "Validation failed",
+            code: "VALIDATION_ERROR",
+            details: validationError.errors.map((err) => ({
+              path: err.path.join("."),
+              message: err.message,
+            })),
+          },
+          { status: 400 }
+        );
+      }
+      throw validationError;
+    }
+
+    // Ensure name is trimmed and valid
+    const trimmedName = body.name.trim();
+    if (trimmedName.length < 3) {
+      return NextResponse.json(
+        {
+          error: "Display name must be at least 3 characters",
+          code: "VALIDATION_ERROR",
+        },
+        { status: 400 }
+      );
+    }
 
     const updatedUser = await db.update(users)
       .set({
-        name: body.name,
+        name: trimmedName,
         avatar_url: body.avatarUrl || null,
         image: body.avatarUrl || null, // Also update image field for NextAuth compatibility
       })
@@ -44,6 +100,7 @@ export async function PATCH(req: Request) {
       message: "Profile updated successfully"
     });
   } catch (error) {
+    console.error("Profile update error:", error);
     return handleApiError(error);
   }
 } 
