@@ -110,26 +110,63 @@ export function SignUpForm() {
                 You can sign in now, but verifying your email is recommended for account security.
               </p>
               {verificationUrl && (
-                <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md text-left">
-                  <p className="text-xs font-semibold mb-2 text-amber-800 dark:text-amber-200 flex items-center gap-1">
-                    <span>🔗</span> Verification Link
-                  </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-300 mb-2">
-                    Copy this link to verify your email (expires in 24 hours):
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 text-xs text-primary bg-background p-2 rounded border break-all">
-                      {verificationUrl}
-                    </code>
+                <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-left transition-spring">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="flex-shrink-0">
+                      <span className="text-2xl animate-pointing-finger">👆</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold mb-1 text-amber-800 dark:text-amber-200">
+                        Click the link below to verify your email
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        This link expires in 24 hours
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={verificationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full group"
+                  >
+                    <div className="flex items-center gap-2 p-3 bg-primary/10 hover:bg-primary/20 dark:bg-primary/20 dark:hover:bg-primary/30 rounded-md border-2 border-primary/30 hover:border-primary/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-primary truncate">
+                          Verify Email Address
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {verificationUrl.replace(/^https?:\/\//, '')}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 flex items-center gap-1">
+                        <span className="text-lg animate-pointing-finger">👆</span>
+                        <svg
+                          className="w-4 h-4 text-primary transition-transform duration-300 group-hover:translate-x-1"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </a>
+                  <div className="mt-3 flex items-start gap-2">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={async (e) => {
                         try {
                           await navigator.clipboard.writeText(verificationUrl);
                           const btn = e.currentTarget;
                           const originalText = btn.textContent;
-                          btn.textContent = "Copied!";
+                          btn.textContent = "✓ Copied!";
                           setTimeout(() => {
                             if (btn) btn.textContent = originalText;
                           }, 2000);
@@ -137,9 +174,9 @@ export function SignUpForm() {
                           console.error("Failed to copy:", err);
                         }
                       }}
-                      className="shrink-0"
+                      className="text-xs h-7 text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100"
                     >
-                      Copy
+                      Copy link instead
                     </Button>
                   </div>
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">

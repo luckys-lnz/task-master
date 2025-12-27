@@ -326,6 +326,31 @@
   }
 }
 
+@keyframes pointing-finger {
+  0%, 100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  25% {
+    transform: translateX(4px) translateY(-2px) rotate(-5deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateX(8px) translateY(-4px) rotate(-10deg);
+    opacity: 1;
+  }
+  75% {
+    transform: translateX(4px) translateY(-2px) rotate(-5deg);
+    opacity: 0.9;
+  }
+}
+
+.animate-pointing-finger {
+  animation: pointing-finger 2s ease-in-out infinite;
+  display: inline-block;
+  transform-origin: bottom center;
+}
+
 /* Spring Animation Easing Functions */
 :root {
   /* Spring easing - natural, bouncy feel */
