@@ -9,7 +9,6 @@
     ],
     "jsx": "preserve",
     "skipLibCheck": true,
-    "types": ["react", "react-dom"],
     "sourceMap": true,
     "outDir": "./dist",
     "moduleResolution": "bundler",
