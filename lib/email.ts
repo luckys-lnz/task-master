@@ -3,7 +3,7 @@
  * Uses Resend for email sending
  */
 
-import { env } from "./env";
+import { env, getBaseUrl } from "./env";
 
 export interface EmailResult {
   success: boolean;
@@ -19,7 +19,9 @@ export async function sendVerificationEmail(
   email: string,
   token: string
 ): Promise<EmailResult> {
-  const verificationUrl = `${env.NEXTAUTH_URL}/auth/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+  // Use getBaseUrl() at runtime to ensure correct production URL
+  const baseUrl = getBaseUrl();
+  const verificationUrl = `${baseUrl}/auth/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
 
   // In development, log the email
   if (env.NODE_ENV === "development") {
@@ -110,7 +112,9 @@ export async function sendPasswordResetEmail(
   email: string,
   token: string
 ): Promise<EmailResult> {
-  const resetUrl = `${env.NEXTAUTH_URL}/auth/reset-password?token=${token}`;
+  // Use getBaseUrl() at runtime to ensure correct production URL
+  const baseUrl = getBaseUrl();
+  const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
 
   // In development, log the email
   if (env.NODE_ENV === "development") {

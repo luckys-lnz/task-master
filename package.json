@@ -58,6 +58,7 @@
     "@swc/core": "^1.11.29",
     "@swc/register": "^0.1.10",
     "@tailwindcss/postcss": "^4.1.7",
+    "@types/json5": "^0.0.30",
     "@types/node": "^20.17.50",
     "@types/pg": "^8.15.2",
     "@types/react": "^18.2.0",
