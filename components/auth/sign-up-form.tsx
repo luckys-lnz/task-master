@@ -113,7 +113,7 @@ export function SignUpForm() {
                 <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-left transition-spring">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="flex-shrink-0">
-                      <span className="text-2xl animate-pointing-finger">👆</span>
+                      <span className="text-2xl animate-pointing-finger">👇</span>
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-semibold mb-1 text-amber-800 dark:text-amber-200">
