@@ -66,14 +66,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
       }
 
       // Determine avatarUrl - prefer state value, then form value, or undefined
-      const finalAvatarUrl = avatarUrl || (data.avatarUrl && data.avatarUrl.trim() ? data.avatarUrl.trim() : undefined);
+      // Only include avatarUrl if it's a valid non-empty string
+      let finalAvatarUrl: string | undefined = undefined;
+      
+      if (avatarUrl && avatarUrl.trim()) {
+        finalAvatarUrl = avatarUrl.trim();
+      } else if (data.avatarUrl && data.avatarUrl.trim()) {
+        finalAvatarUrl = data.avatarUrl.trim();
+      }
 
-      const requestBody = {
+      // Build request body - only include avatarUrl if it has a valid value
+      const requestBody: { name: string; avatarUrl?: string } = {
         name: trimmedName,
-        ...(finalAvatarUrl !== undefined && finalAvatarUrl !== null && finalAvatarUrl !== "" 
-          ? { avatarUrl: finalAvatarUrl } 
-          : {}),
       };
+      
+      // Only add avatarUrl if it's a valid string (not null, not undefined, not empty)
+      if (finalAvatarUrl && typeof finalAvatarUrl === 'string' && finalAvatarUrl.length > 0) {
+        requestBody.avatarUrl = finalAvatarUrl;
+      }
 
       // Log request for debugging
       console.log("Profile update request:", requestBody);
@@ -83,6 +93,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(requestBody),
       });
 

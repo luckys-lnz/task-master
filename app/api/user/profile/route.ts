@@ -11,7 +11,14 @@ const profileSchema = z.object({
   avatarUrl: z.preprocess(
     (val) => {
       // Convert empty string, null, or undefined to undefined
-      if (!val || val === "" || val === null) return undefined;
+      // This handles cases where null is explicitly sent from the client
+      if (val === null || val === undefined || val === "") {
+        return undefined;
+      }
+      // Ensure it's a string
+      if (typeof val !== 'string') {
+        return undefined;
+      }
       return val;
     },
     z.string().optional().refine(
@@ -59,6 +66,23 @@ export async function PATCH(req: Request) {
     // Validate request body
     let body;
     try {
+      // Ensure name exists and is a string
+      if (!json.name || typeof json.name !== 'string') {
+        return NextResponse.json(
+          {
+            error: "Name is required and must be a string",
+            code: "VALIDATION_ERROR",
+            received: { name: json.name, type: typeof json.name },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Pre-process avatarUrl to convert null to undefined before validation
+      if (json.avatarUrl === null) {
+        delete json.avatarUrl;
+      }
+
       body = profileSchema.parse(json);
     } catch (validationError) {
       console.error("Validation error:", validationError);
@@ -70,7 +94,9 @@ export async function PATCH(req: Request) {
             details: validationError.errors.map((err) => ({
               path: err.path.join("."),
               message: err.message,
+              code: err.code,
             })),
+            received: json,
           },
           { status: 400 }
         );
@@ -85,6 +111,7 @@ export async function PATCH(req: Request) {
         {
           error: "Display name must be at least 3 characters",
           code: "VALIDATION_ERROR",
+          received: { name: body.name, trimmedLength: trimmedName.length },
         },
         { status: 400 }
       );
