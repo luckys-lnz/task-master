@@ -100,7 +100,7 @@ export default function HomePageClient() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-32 px-4 sm:px-6 lg:px-8 w-full">
+      <section className="relative pt-32 pb-16 px-4 sm:px-6 lg:px-8 w-full">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
             {/* Animated Logo/Brand */}
@@ -170,7 +170,7 @@ export default function HomePageClient() {
       </section>
 
       {/* Animated Features Section */}
-      <section className="relative py-32 px-4 sm:px-6 lg:px-8">
+      <section className="relative pt-16 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <div 
