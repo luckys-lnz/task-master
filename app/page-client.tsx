@@ -100,7 +100,7 @@ export default function HomePageClient() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-16 px-4 sm:px-6 lg:px-8 w-full">
+      <section className="relative pt-20 pb-8 sm:pt-32 sm:pb-16 px-4 sm:px-6 lg:px-8 w-full">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
             {/* Animated Logo/Brand */}
@@ -139,7 +139,7 @@ export default function HomePageClient() {
 
             {/* Animated CTA Buttons */}
             <div 
-              className={`flex flex-col sm:flex-row gap-4 justify-center items-center mb-16 transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+              className={`flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 sm:mb-16 transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
               style={{ animationDelay: '0.8s' }}
             >
               <Button 
@@ -170,9 +170,9 @@ export default function HomePageClient() {
       </section>
 
       {/* Animated Features Section */}
-      <section className="relative pt-16 pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="relative pt-8 pb-12 sm:pt-16 sm:pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-8 sm:mb-16">
             <div 
               className={`inline-flex items-center gap-2 mb-4 transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
             >
@@ -219,7 +219,7 @@ export default function HomePageClient() {
       </section>
 
       {/* Animated Final CTA Section */}
-      <section className="relative py-32 px-4 sm:px-6 lg:px-8 w-full pb-40">
+      <section className="relative py-12 pb-16 sm:py-32 sm:pb-40 px-4 sm:px-6 lg:px-8 w-full">
         <div className="max-w-4xl mx-auto text-center">
           <div 
             className={`relative p-12 rounded-3xl border-2 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 dark:from-blue-500/20 dark:via-purple-500/20 dark:to-pink-500/20 backdrop-blur-sm hover:scale-105 transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
