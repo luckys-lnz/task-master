@@ -121,6 +121,9 @@
   
   html {
     font-size: 16px; /* Base for rem calculations */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    scroll-behavior: smooth;
   }
   
   body {
@@ -129,6 +132,10 @@
     line-height: var(--leading-normal);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    min-height: 100vh;
+    touch-action: pan-y; /* Enable vertical touch scrolling */
   }
 
   /* Apply typography scale to all text elements */

@@ -45,7 +45,7 @@ export default function HomePageClient() {
   }, []);
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden">
+    <div className="relative overflow-x-hidden w-full">
       {/* Animated Colorful Background */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
         {/* Base gradient */}
