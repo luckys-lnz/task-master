@@ -54,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </div>
             </header>
-            <main className="w-full">
+            <main className="w-full overflow-visible">
               <PageTransition>
                 {children}
               </PageTransition>

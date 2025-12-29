@@ -41,11 +41,18 @@ export default function HomePageClient() {
     };
     
     window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
+    
+    // Ensure page can scroll
+    document.body.style.overflow = 'auto';
+    document.documentElement.style.overflow = 'auto';
+    
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
   }, []);
 
   return (
-    <div className="relative overflow-x-hidden w-full">
+    <div className="relative overflow-x-hidden w-full min-h-screen">
       {/* Animated Colorful Background */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
         {/* Base gradient */}
@@ -81,7 +88,7 @@ export default function HomePageClient() {
       </div>
 
       {/* Animated Pattern Overlay */}
-      <div className="absolute inset-0 -z-10 opacity-10 dark:opacity-5">
+      <div className="fixed inset-0 -z-10 opacity-10 dark:opacity-5 pointer-events-none">
         <div 
           className="absolute inset-0"
           style={{
@@ -93,7 +100,7 @@ export default function HomePageClient() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 w-full">
+      <section className="relative pt-32 pb-32 px-4 sm:px-6 lg:px-8 w-full">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
             {/* Animated Logo/Brand */}
@@ -163,7 +170,7 @@ export default function HomePageClient() {
       </section>
 
       {/* Animated Features Section */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
+      <section className="relative py-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <div 
@@ -212,7 +219,7 @@ export default function HomePageClient() {
       </section>
 
       {/* Animated Final CTA Section */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 w-full pb-32">
+      <section className="relative py-32 px-4 sm:px-6 lg:px-8 w-full pb-40">
         <div className="max-w-4xl mx-auto text-center">
           <div 
             className={`relative p-12 rounded-3xl border-2 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 dark:from-blue-500/20 dark:via-purple-500/20 dark:to-pink-500/20 backdrop-blur-sm hover:scale-105 transition-all duration-500 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
