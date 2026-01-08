@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -325,8 +326,14 @@ export function SignUpForm() {
         </div>
       </div>
 
-      <Button variant="outline" className="w-full" disabled={isLoading} onClick={() => {}}>
-        <Icons.google className="mr-2 h-4 w-4" /> Google
+      <Button 
+        variant="outline" 
+        type="button"
+        className="w-full" 
+        disabled={isLoading} 
+        onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+      >
+        <Icons.google className="mr-2 h-4 w-4" /> Continue with Google
       </Button>
     </div>
   );
