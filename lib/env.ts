@@ -20,12 +20,12 @@ function isDevelopment(): boolean {
 /**
  * Get the base URL for the application dynamically at runtime
  * Intelligently detects production vs development:
- * - Production (Vercel): Uses VERCEL_URL or NEXTAUTH_URL (never localhost)
+ * - Production (Vercel): Prefers NEXTAUTH_URL (production domain) over VERCEL_URL (preview URLs)
  * - Development (local): Uses localhost:3000
  * 
  * Priority in Production:
- * 1. NEXTAUTH_URL (if set and NOT localhost)
- * 2. VERCEL_URL (auto-provided by Vercel)
+ * 1. NEXTAUTH_URL (if set and NOT localhost) - Use production domain, not preview URLs
+ * 2. VERCEL_URL (auto-provided by Vercel) - Only if NEXTAUTH_URL not set
  * 
  * Priority in Development:
  * 1. NEXTAUTH_URL (if explicitly set)
@@ -35,63 +35,47 @@ export function getBaseUrl(): string {
   const isProd = isProduction();
   const isDev = isDevelopment();
 
-  // In production, NEVER use localhost
+  // In production, prefer NEXTAUTH_URL (production domain) over VERCEL_URL (preview URLs)
   if (isProd) {
-    // Check if NEXTAUTH_URL is set and valid (not localhost)
+    // Always prefer NEXTAUTH_URL if it's set and valid (production domain)
     if (process.env.NEXTAUTH_URL) {
-      const url = process.env.NEXTAUTH_URL;
+      const url = process.env.NEXTAUTH_URL.trim();
       // Reject localhost in production
       if (url.includes('localhost') || url.includes('127.0.0.1')) {
         console.warn(
           '⚠️  WARNING: NEXTAUTH_URL is set to localhost in production. ' +
-          'Ignoring it and using VERCEL_URL instead. ' +
-          'Please remove NEXTAUTH_URL from Vercel environment variables or set it to your production domain.'
+          'Falling back to VERCEL_URL. ' +
+          'Please set NEXTAUTH_URL to your production domain in Vercel environment variables.'
         );
         // Fall through to use VERCEL_URL
       } else {
-        // Valid production URL
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`✅ Using NEXTAUTH_URL for production: ${url}`);
-        }
+        // Valid production URL - use it (this should be your production domain)
         return url;
       }
     }
 
-    // On Vercel, use VERCEL_URL (automatically provided by Vercel at runtime)
-    // VERCEL_URL is the deployment URL (e.g., "your-app.vercel.app")
+    // On Vercel, use VERCEL_URL as fallback (this is the deployment URL)
+    // Note: VERCEL_URL can be a preview URL, so NEXTAUTH_URL should be set to production domain
     if (process.env.VERCEL_URL) {
-      const vercelUrl = process.env.VERCEL_URL;
-      const productionUrl = `https://${vercelUrl}`;
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`✅ Using VERCEL_URL for production: ${productionUrl}`);
-      }
+      const vercelUrl = process.env.VERCEL_URL.trim();
       // Always use https:// for Vercel URLs
-      return productionUrl;
+      return `https://${vercelUrl}`;
     }
 
     // During build time, VERCEL_URL might not be available yet
-    // Allow fallback to NEXTAUTH_URL or a placeholder that will be resolved at runtime
-    if (process.env.NEXTAUTH_URL) {
-      // Even if it's localhost, use it during build (will be overridden at runtime)
-      return process.env.NEXTAUTH_URL;
-    }
-
-    // During build time, VERCEL_URL might not be available
     // Check if we're in build phase
     const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build' || 
                          process.env.NEXT_PHASE === 'phase-development-build';
     
     if (isBuildPhase) {
-      // During build, allow NEXTAUTH_URL even if it's localhost (will be overridden at runtime)
-      // Or use a placeholder
+      // During build, use NEXTAUTH_URL if available, otherwise fallback
       return process.env.NEXTAUTH_URL || 'http://localhost:3000';
     }
 
-    // Production runtime fallback - only throw at runtime, not during build
+    // Production runtime fallback
     throw new Error(
       'Unable to determine production URL. ' +
-      'On Vercel, VERCEL_URL is automatically provided. ' +
-      'Alternatively, set NEXTAUTH_URL in your Vercel environment variables to your production domain (e.g., https://your-app.vercel.app).'
+      'Please set NEXTAUTH_URL in your Vercel environment variables to your production domain (e.g., https://your-app.vercel.app).'
     );
   }
 
@@ -99,19 +83,14 @@ export function getBaseUrl(): string {
   if (isDev) {
     // If NEXTAUTH_URL is explicitly set in development, use it
     if (process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes('localhost')) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`✅ Using custom NEXTAUTH_URL for development: ${process.env.NEXTAUTH_URL}`);
-      }
       return process.env.NEXTAUTH_URL;
     }
     // Default to localhost for local development
-    const localhostUrl = 'http://localhost:3000';
-    return localhostUrl;
+    return 'http://localhost:3000';
   }
 
-  // Fallback (should not reach here)
-  const fallbackUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  return fallbackUrl;
+  // Fallback
+  return process.env.NEXTAUTH_URL || 'http://localhost:3000';
 }
 
 // For backward compatibility and initial validation, compute baseUrl at module load

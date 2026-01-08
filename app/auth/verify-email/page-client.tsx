@@ -59,10 +59,9 @@ function VerifyEmailContent() {
           // Successfully verified and signed in
           setStatus("success");
           setMessage("Your email has been verified! Redirecting to dashboard...");
-          setTimeout(() => {
-            router.push("/dashboard");
-            router.refresh();
-          }, 1500);
+          // Redirect immediately without delay for better UX
+          router.push("/dashboard");
+          router.refresh();
         } else {
           // Should not happen, but handle it
           setStatus("error");
@@ -187,7 +186,7 @@ function VerifyEmailContent() {
                     {message}
                   </CardDescription>
                   <CardDescription className="text-sm text-muted-foreground mt-2">
-                    Redirecting to sign in...
+                    Taking you to your dashboard...
                   </CardDescription>
                 </CardHeader>
               </Card>
