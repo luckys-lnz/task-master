@@ -5,10 +5,9 @@ import GoogleProvider from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "./db";
 import { compare } from "bcryptjs";
-import { users } from "./db/schema";
+import { users, accounts, sessions, verificationTokens } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { env } from "./env";
-import { normalizeEmail } from "./auth-utils";
 import { sanitizeEmail, validateInputSecurity } from "./security";
 import { rateLimit } from "./rate-limit";
 
@@ -24,7 +23,12 @@ declare module "next-auth" {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: DrizzleAdapter(db),
+  adapter: DrizzleAdapter(db, {
+    usersTable: users,
+    accountsTable: accounts,
+    sessionsTable: sessions,
+    verificationTokensTable: verificationTokens,
+  } as any), // Type assertion needed due to camelCase property names mapping to snake_case DB columns
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -52,6 +56,7 @@ export const authOptions: NextAuthOptions = {
           GoogleProvider({
             clientId: env.GOOGLE_CLIENT_ID,
             clientSecret: env.GOOGLE_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true, // Allow linking OAuth accounts to existing users with same email
             authorization: {
               params: {
                 prompt: "select_account",
@@ -96,11 +101,11 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          // Update email_verified and clear the token (since we're using it to sign in)
+          // Update emailVerified and clear the token (since we're using it to sign in)
           await db
             .update(users)
             .set({
-              email_verified: new Date(),
+              emailVerified: new Date(),
               email_verification_token: null,
               email_verification_expires: null,
             })
@@ -182,7 +187,7 @@ export const authOptions: NextAuthOptions = {
 
           // Check if email is verified (optional - you can make this required)
           // For now, we'll allow unverified users but could add a check here
-          // if (!user.email_verified) {
+          // if (!user.emailVerified) {
           //   throw new Error("Please verify your email address before signing in. Check your inbox for the verification link.");
           // }
 
@@ -280,35 +285,42 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async signIn({ user, account }) {
+      // Let DrizzleAdapter handle user creation and account linking automatically
+      // The adapter will:
+      // 1. Create user if doesn't exist
+      // 2. Link OAuth account to existing user (if allowDangerousEmailAccountLinking is enabled)
+      // 3. Create session
+      
       if (account?.provider === "google") {
-        try {
-          if (!user.email) {
-            return false;
-          }
-
-          const normalizedEmail = normalizeEmail(user.email);
-          const [existingUser] = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, normalizedEmail))
-            .limit(1);
-          
-          if (!existingUser) {
-            // Create new user if doesn't exist
-            await db.insert(users).values({
-              email: normalizedEmail,
-              name: user.name || null,
-              image: user.image || null,
-              email_verified: new Date() // Google emails are pre-verified
-            });
-          }
-          return true;
-        } catch (error) {
-          console.error("Error in signIn callback:", error);
+        // Validate that email exists (required for account linking)
+        if (!user.email) {
+          console.error("Google OAuth sign-in failed: No email provided");
           return false;
         }
+        
+        // Allow the adapter to handle the rest
+        return true;
       }
+      
       return true;
+    },
+    async redirect({ url, baseUrl }) {
+      // If url is a relative URL, make it absolute
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      // If url is on the same origin, allow it
+      try {
+        const urlObj = new URL(url);
+        if (urlObj.origin === baseUrl) {
+          return url;
+        }
+      } catch {
+        // Invalid URL, fall through to default
+      }
+      // Default to dashboard for OAuth redirects
+      // This ensures Google OAuth always redirects to dashboard if no callbackUrl is provided
+      return `${baseUrl}/dashboard`;
     }
   },
   debug: env.NODE_ENV === 'development',
