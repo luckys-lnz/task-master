@@ -30,6 +30,9 @@ const pool = new Pool({
 
 export const db = drizzle(pool, { schema: schema });
 
+// Export schema tables for DrizzleAdapter (if needed)
+export { accounts, sessions, users, verificationTokens } from './schema';
+
 // Test the connection
 pool.on('error', (err: Error) => {
   console.error('Unexpected error on idle client', err);

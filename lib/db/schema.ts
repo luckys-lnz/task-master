@@ -15,7 +15,7 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name"),
   email: text("email").unique().notNull(),
-  email_verified: timestamp("email_verified", { mode: "date" }),
+  emailVerified: timestamp("email_verified", { mode: "date" }),
   image: text("image"),
   hashed_password: text("hashed_password"),
   avatar_url: text("avatar_url"),
@@ -76,27 +76,34 @@ export const subtasksRelations = relations(subtasks, ({ one }) => ({
   }),
 }));
 
-// Auth tables
+// Auth tables - using camelCase column names for NextAuth DrizzleAdapter compatibility
+// The database columns will still be snake_case, but Drizzle will map them correctly
 export const accounts = pgTable("accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
-  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
   provider: text("provider").notNull(),
   providerAccountId: text("providerAccountId").notNull(),
-  refresh_token: text("refresh_token"),
-  access_token: text("access_token"),
-  expires_at: timestamp("expires_at"),
-  token_type: text("token_type"),
+  refreshToken: text("refresh_token"),
+  accessToken: text("access_token"),
+  expiresAt: timestamp("expires_at"),
+  tokenType: text("token_type"),
   scope: text("scope"),
-  id_token: text("id_token"),
-  session_state: text("session_state")
+  idToken: text("id_token"),
+  sessionState: text("session_state")
 });
 
 export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   sessionToken: text("sessionToken").unique().notNull(),
   expires: timestamp("expires").notNull()
+});
+
+export const verificationTokens = pgTable("verification_tokens", {
+  identifier: text("identifier").notNull(),
+  token: text("token").notNull(),
+  expires: timestamp("expires").notNull(),
 });
 
 export type User = typeof users.$inferSelect;
