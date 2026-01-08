@@ -160,7 +160,7 @@ export async function clearPasswordResetToken(userId: string): Promise<void> {
  */
 export async function checkAccountLockedAndGetUser(
   email: string
-): Promise<{ id: string; hashed_password: string | null; email: string | null; name: string | null; image: string | null; email_verified: Date | null; locked_until: Date | null; failed_login_attempts: string | null } | null> {
+): Promise<{ id: string; hashed_password: string | null; email: string | null; name: string | null; image: string | null; emailVerified: Date | null; locked_until: Date | null; failed_login_attempts: string | null } | null> {
   const [user] = await db
     .select({ 
       id: users.id,
@@ -168,7 +168,7 @@ export async function checkAccountLockedAndGetUser(
       name: users.name,
       image: users.image,
       hashed_password: users.hashed_password,
-      email_verified: users.email_verified,
+      emailVerified: users.emailVerified,
       locked_until: users.locked_until,
       failed_login_attempts: users.failed_login_attempts
     })
