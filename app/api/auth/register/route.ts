@@ -101,7 +101,7 @@ export async function POST(req: Request) {
         name: sanitizedName,
         email: normalizedEmail,
         hashed_password: hashedPassword,
-        email_verified: null,
+        emailVerified: null,
         notifications_enabled: true,
         default_view: "list",
         theme: "system",
