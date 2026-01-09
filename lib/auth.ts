@@ -3,6 +3,7 @@ import NextAuth from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import type { DefaultPostgresSchema } from "@auth/drizzle-adapter/lib/pg";
 import { db } from "./db";
 import { compare } from "bcryptjs";
 import { users, accounts, sessions, verificationTokens } from "./db/schema";
@@ -23,14 +24,12 @@ declare module "next-auth" {
   }
 }
 
-// Schema mapping for DrizzleAdapter
-// The adapter expects specific property names: accountsTable, usersTable, etc.
 const adapterSchema = {
   usersTable: users,
   accountsTable: accounts,
   sessionsTable: sessions,
   verificationTokensTable: verificationTokens,
-} as any; // Type assertion to bypass strict type checking - our schema matches at runtime
+} as unknown as DefaultPostgresSchema;
 
 export const authOptions: NextAuthOptions = {
   adapter: DrizzleAdapter(db, adapterSchema),
@@ -155,7 +154,7 @@ export const authOptions: NextAuthOptions = {
           const emailRateLimit = rateLimit(`signin:${sanitizedEmail}`, 5, 15 * 60 * 1000);
           if (!emailRateLimit.allowed) {
             const error = new Error("Too many login attempts. Please try again later.");
-            (error as any).code = "RATE_LIMIT_EXCEEDED";
+            Object.assign(error, { code: "RATE_LIMIT_EXCEEDED" });
             throw error;
           }
 
@@ -190,12 +189,6 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          // Check if email is verified (optional - you can make this required)
-          // For now, we'll allow unverified users but could add a check here
-          // if (!user.email_verified) {
-          //   throw new Error("Please verify your email address before signing in. Check your inbox for the verification link.");
-          // }
-
           // Reset failed login attempts on successful login
           await resetFailedLoginAttempts(normalizedEmail);
 
@@ -208,7 +201,7 @@ export const authOptions: NextAuthOptions = {
         } catch (error) {
           console.error("Error during authentication:", error);
           // Re-throw specific errors so NextAuth can handle them
-          if (error instanceof Error && (error as any).code === "ACCOUNT_LOCKED") {
+          if (error instanceof Error && "code" in error && error.code === "ACCOUNT_LOCKED") {
             throw error;
           }
           return null;
@@ -260,7 +253,7 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ token, session }) {
       // If token has error flag (user was deleted), return null to invalidate session
-      if (!token || !token.id || (token as any).error) {
+      if (!token || !token.id || "error" in token) {
         return null as any;
       }
       
@@ -289,7 +282,7 @@ export const authOptions: NextAuthOptions = {
       
       return session;
     },
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       if (account?.provider === "google") {
         try {
           if (!user.email) {
@@ -373,8 +366,6 @@ export const authOptions: NextAuthOptions = {
       } catch {
         // Invalid URL, fall through to default
       }
-      // Default to dashboard for OAuth redirects
-      // This ensures Google OAuth always redirects to dashboard if no callbackUrl is provided
       return `${baseUrl}/dashboard`;
     }
   },
