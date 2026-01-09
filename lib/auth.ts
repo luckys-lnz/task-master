@@ -305,6 +305,19 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async redirect({ url, baseUrl }) {
+      // Log for debugging (only in development or if there's an issue)
+      if (process.env.NODE_ENV === 'development' || baseUrl.includes('vercel.app')) {
+        console.log('🔀 NextAuth redirect:', { url, baseUrl, NEXTAUTH_URL: process.env.NEXTAUTH_URL });
+      }
+      
+      // Validate baseUrl is not a preview URL
+      if (baseUrl.includes('vercel.app') && baseUrl.match(/-[a-z0-9]{7,}-[a-z0-9-]+\.vercel\.app/i)) {
+        console.error('❌ CRITICAL: NextAuth baseUrl is a preview URL! This will cause authentication issues.');
+        console.error('   baseUrl:', baseUrl);
+        console.error('   Please set NEXTAUTH_URL to your production domain in Vercel environment variables.');
+        // Still allow the redirect but log the error
+      }
+      
       // If url is a relative URL, make it absolute
       if (url.startsWith("/")) {
         return `${baseUrl}${url}`;

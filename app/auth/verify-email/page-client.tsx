@@ -46,10 +46,16 @@ function VerifyEmailContent() {
         setStatus("loading");
         setMessage("Verifying your email and signing you in...");
 
+        // Log for debugging
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔐 Attempting email verification:', { email, tokenLength: token?.length });
+        }
+
         const result = await signIn("email-verification", {
           email: email,
           token: token,
-          redirect: false,
+          redirect: false, // Important: Don't redirect, handle it manually
+          callbackUrl: "/dashboard", // Set callback URL explicitly
         });
 
         if (result?.error) {

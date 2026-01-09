@@ -18,14 +18,32 @@ function isDevelopment(): boolean {
 }
 
 /**
+ * Check if a Vercel URL is a preview URL (not production)
+ * Preview URLs typically contain branch names, commit hashes, or have patterns like:
+ * - project-name-{hash}-{user}.vercel.app
+ * - project-name-git-{branch}-{user}.vercel.app
+ */
+function isVercelPreviewUrl(url: string): boolean {
+  if (!url.includes('vercel.app')) return false;
+  
+  // Production URLs are typically: project-name.vercel.app or custom domain
+  // Preview URLs contain: project-name-{hash}-{user}.vercel.app or project-name-git-{branch}-{user}.vercel.app
+  const previewPatterns = [
+    /-[a-z0-9]{7,}-[a-z0-9-]+\.vercel\.app/i, // Hash pattern: project-abc123-user.vercel.app
+    /-git-[a-z0-9-]+-[a-z0-9-]+\.vercel\.app/i, // Branch pattern: project-git-branch-user.vercel.app
+  ];
+  
+  return previewPatterns.some(pattern => pattern.test(url));
+}
+
+/**
  * Get the base URL for the application dynamically at runtime
- * Intelligently detects production vs development:
- * - Production (Vercel): Prefers NEXTAUTH_URL (production domain) over VERCEL_URL (preview URLs)
- * - Development (local): Uses localhost:3000
+ * Production-ready implementation that rejects preview URLs
  * 
  * Priority in Production:
- * 1. NEXTAUTH_URL (if set and NOT localhost) - Use production domain, not preview URLs
- * 2. VERCEL_URL (auto-provided by Vercel) - Only if NEXTAUTH_URL not set
+ * 1. NEXTAUTH_URL (if set and valid) - MUST be production domain
+ * 2. VERCEL_URL (only if VERCEL_ENV === 'production' and not a preview URL)
+ * 3. Throw error if no valid production URL found
  * 
  * Priority in Development:
  * 1. NEXTAUTH_URL (if explicitly set)
@@ -35,57 +53,99 @@ export function getBaseUrl(): string {
   const isProd = isProduction();
   const isDev = isDevelopment();
 
-  // In production, prefer NEXTAUTH_URL (production domain) over VERCEL_URL (preview URLs)
+  // In production, NEVER use preview URLs
   if (isProd) {
-    // Always prefer NEXTAUTH_URL if it's set and valid (production domain)
+    // Priority 1: NEXTAUTH_URL (should be set to production domain)
     if (process.env.NEXTAUTH_URL) {
       const url = process.env.NEXTAUTH_URL.trim();
+      
       // Reject localhost in production
       if (url.includes('localhost') || url.includes('127.0.0.1')) {
-        console.warn(
-          '⚠️  WARNING: NEXTAUTH_URL is set to localhost in production. ' +
-          'Falling back to VERCEL_URL. ' +
-          'Please set NEXTAUTH_URL to your production domain in Vercel environment variables.'
+        console.error(
+          '❌ ERROR: NEXTAUTH_URL is set to localhost in production. ' +
+          'This is invalid. Please set NEXTAUTH_URL to your production domain in Vercel environment variables.'
         );
-        // Fall through to use VERCEL_URL
-      } else {
-        // Valid production URL - use it (this should be your production domain)
+        // Don't fall through - throw error instead
+      } 
+      // Reject preview URLs
+      else if (isVercelPreviewUrl(url)) {
+        console.error(
+          '❌ ERROR: NEXTAUTH_URL is set to a Vercel preview URL. ' +
+          'Preview URLs cannot be used for email verification links. ' +
+          'Please set NEXTAUTH_URL to your production domain (e.g., https://your-app.vercel.app or your custom domain).'
+        );
+        // Don't fall through - throw error instead
+      }
+      // Valid production URL
+      else {
         return url;
       }
     }
 
-    // On Vercel, use VERCEL_URL as fallback (this is the deployment URL)
-    // Note: VERCEL_URL can be a preview URL, so NEXTAUTH_URL should be set to production domain
+    // Priority 2: VERCEL_URL (only if it's a production deployment, not preview)
     if (process.env.VERCEL_URL) {
       const vercelUrl = process.env.VERCEL_URL.trim();
-      // Always use https:// for Vercel URLs
-      return `https://${vercelUrl}`;
+      const fullUrl = vercelUrl.startsWith('http') ? vercelUrl : `https://${vercelUrl}`;
+      
+      // Check if this is actually a production deployment (not preview)
+      const isProductionDeployment = process.env.VERCEL_ENV === 'production';
+      
+      // Reject preview URLs even if VERCEL_ENV is production (safety check)
+      if (isVercelPreviewUrl(fullUrl)) {
+        console.error(
+          '❌ ERROR: VERCEL_URL is a preview URL. ' +
+          'Email verification links cannot use preview URLs as they require Vercel authentication. ' +
+          'Please set NEXTAUTH_URL to your production domain in Vercel environment variables.'
+        );
+        throw new Error(
+          'Cannot use preview URL for email verification. ' +
+          'Set NEXTAUTH_URL environment variable to your production domain (e.g., https://your-app.vercel.app).'
+        );
+      }
+      
+      // Only use VERCEL_URL if it's a production deployment
+      if (isProductionDeployment) {
+        return fullUrl;
+      } else {
+        console.error(
+          '❌ ERROR: VERCEL_ENV is not "production". ' +
+          'Email verification links must use production URLs. ' +
+          'Please set NEXTAUTH_URL to your production domain in Vercel environment variables.'
+        );
+      }
     }
 
     // During build time, VERCEL_URL might not be available yet
-    // Check if we're in build phase
     const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build' || 
                          process.env.NEXT_PHASE === 'phase-development-build';
     
     if (isBuildPhase) {
       // During build, use NEXTAUTH_URL if available, otherwise fallback
+      // This is acceptable during build as it will be resolved at runtime
+      if (process.env.NEXTAUTH_URL && !isVercelPreviewUrl(process.env.NEXTAUTH_URL)) {
+        return process.env.NEXTAUTH_URL;
+      }
       return process.env.NEXTAUTH_URL || 'http://localhost:3000';
     }
 
-    // Production runtime fallback
+    // Production runtime - no valid URL found
     throw new Error(
-      'Unable to determine production URL. ' +
-      'Please set NEXTAUTH_URL in your Vercel environment variables to your production domain (e.g., https://your-app.vercel.app).'
+      '❌ CRITICAL: Unable to determine production URL for email verification links.\n\n' +
+      'SOLUTION: Set NEXTAUTH_URL in your Vercel environment variables:\n' +
+      '1. Go to Vercel Dashboard > Your Project > Settings > Environment Variables\n' +
+      '2. Add NEXTAUTH_URL with value: https://your-app.vercel.app (or your custom domain)\n' +
+      '3. Make sure it\'s set for "Production" environment\n' +
+      '4. Redeploy your application\n\n' +
+      'NOTE: Preview URLs (like task-master-xxx-user.vercel.app) cannot be used for email verification ' +
+      'as they require Vercel authentication. Only production domains work.'
     );
   }
 
   // In development, prefer localhost
   if (isDev) {
-    // If NEXTAUTH_URL is explicitly set in development, use it
     if (process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes('localhost')) {
       return process.env.NEXTAUTH_URL;
     }
-    // Default to localhost for local development
     return 'http://localhost:3000';
   }
 
