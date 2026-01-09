@@ -33,8 +33,9 @@ export default withAuth(
 
     // If the user is authenticated (and token is valid) and trying to access auth pages
     // BUT allow verification and password reset pages (already handled above)
+    // Also allow /auth/verify-email to complete its redirect flow
     if (!isTokenInvalid && (
-      pathname.startsWith("/auth") ||
+      (pathname.startsWith("/auth") && pathname !== "/auth/verify-email" && pathname !== "/auth/reset-password") ||
       pathname === "/"
     )) {
       return NextResponse.redirect(new URL("/dashboard", req.url));

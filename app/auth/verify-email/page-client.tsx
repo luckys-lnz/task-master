@@ -46,16 +46,11 @@ function VerifyEmailContent() {
         setStatus("loading");
         setMessage("Verifying your email and signing you in...");
 
-        // Log for debugging
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔐 Attempting email verification:', { email, tokenLength: token?.length });
-        }
-
         const result = await signIn("email-verification", {
           email: email,
           token: token,
-          redirect: false, // Important: Don't redirect, handle it manually
-          callbackUrl: "/dashboard", // Set callback URL explicitly
+          redirect: false, // Handle redirect manually to show success state
+          callbackUrl: "/dashboard",
         });
 
         if (result?.error) {
@@ -63,9 +58,13 @@ function VerifyEmailContent() {
           setMessage("Verification failed. The link may have expired or is invalid. Please request a new verification email.");
         } else if (result?.ok) {
           // Successfully verified and signed in
+          // NextAuth has set the session cookie synchronously when signIn() returns ok: true
           setStatus("success");
           setMessage("Your email has been verified! Redirecting to dashboard...");
-          // Redirect immediately without delay for better UX
+          
+          // Production-ready approach: Use Next.js router for client-side navigation
+          // This matches the pattern used in sign-in-form.tsx
+          // router.push() triggers navigation, router.refresh() ensures server components get the new session
           router.push("/dashboard");
           router.refresh();
         } else {
