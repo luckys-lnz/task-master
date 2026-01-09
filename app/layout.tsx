@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <LoadingScreen />
           <AuthSessionProvider>
-            <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-background/95 dark:supports-[backdrop-filter]:bg-background/60">
+            <header className="fixed top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-background/95 dark:supports-[backdrop-filter]:bg-background/60 shadow-sm">
               <div className="container flex h-16 items-center justify-between px-4">
                 <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                   <CheckSquare className="h-6 w-6 text-primary" />
