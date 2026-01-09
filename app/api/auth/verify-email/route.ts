@@ -35,11 +35,11 @@ export async function POST(req: Request) {
       throw new ValidationError("User not found");
     }
 
-    // Update user email_verified and clear the verification token
+    // Update user emailVerified and clear the verification token
     await db
       .update(users)
       .set({
-        email_verified: new Date(),
+        emailVerified: new Date(),
         email_verification_token: null,
         email_verification_expires: null,
       })

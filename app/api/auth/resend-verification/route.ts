@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
     // Find user
     const [user] = await db
-      .select({ id: users.id, email: users.email, email_verified: users.email_verified })
+      .select({ id: users.id, email: users.email, emailVerified: users.emailVerified })
       .from(users)
       .where(eq(users.email, normalizedEmail))
       .limit(1);
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       throw new ValidationError("User not found");
     }
 
-    if (user.email_verified) {
+    if (user.emailVerified) {
       throw new ValidationError("Email is already verified");
     }
 
