@@ -3,7 +3,6 @@ import NextAuth from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import type { DefaultPostgresSchema } from "@auth/drizzle-adapter/lib/pg";
 import { db } from "./db";
 import { compare } from "bcryptjs";
 import { users, accounts, sessions, verificationTokens } from "./db/schema";
@@ -29,7 +28,7 @@ const adapterSchema = {
   accountsTable: accounts,
   sessionsTable: sessions,
   verificationTokensTable: verificationTokens,
-} as unknown as DefaultPostgresSchema;
+} as any;
 
 export const authOptions: NextAuthOptions = {
   adapter: DrizzleAdapter(db, adapterSchema),
