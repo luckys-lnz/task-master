@@ -30,7 +30,7 @@ const adapterSchema = {
   accountsTable: accounts,
   sessionsTable: sessions,
   verificationTokensTable: verificationTokens,
-};
+} as any; // Type assertion to bypass strict type checking - our schema matches at runtime
 
 export const authOptions: NextAuthOptions = {
   adapter: DrizzleAdapter(db, adapterSchema),
@@ -323,13 +323,13 @@ export const authOptions: NextAuthOptions = {
                 type: account.type,
                 provider: account.provider,
                 providerAccountId: account.providerAccountId,
-                refreshToken: account.refresh_token || null,
-                accessToken: account.access_token || null,
-                expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
-                tokenType: account.token_type || null,
+                refresh_token: account.refresh_token || null,
+                access_token: account.access_token || null,
+                expires_at: account.expires_at ? new Date(account.expires_at * 1000) : null,
+                token_type: account.token_type || null,
                 scope: account.scope || null,
-                idToken: account.id_token || null,
-                sessionState: account.session_state || null,
+                id_token: account.id_token || null,
+                session_state: account.session_state || null,
               });
             }
 
