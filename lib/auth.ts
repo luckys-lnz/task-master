@@ -5,8 +5,8 @@ import GoogleProvider from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "./db";
 import { compare } from "bcryptjs";
-import { users } from "./db/schema";
-import { eq } from "drizzle-orm";
+import { users, accounts, sessions, verificationTokens } from "./db/schema";
+import { eq, and } from "drizzle-orm";
 import { env } from "./env";
 import { normalizeEmail } from "./auth-utils";
 import { sanitizeEmail, validateInputSecurity } from "./security";
@@ -23,8 +23,17 @@ declare module "next-auth" {
   }
 }
 
+// Schema mapping for DrizzleAdapter
+// The adapter expects specific property names: accountsTable, usersTable, etc.
+const adapterSchema = {
+  usersTable: users,
+  accountsTable: accounts,
+  sessionsTable: sessions,
+  verificationTokensTable: verificationTokens,
+};
+
 export const authOptions: NextAuthOptions = {
-  adapter: DrizzleAdapter(db),
+  adapter: DrizzleAdapter(db, adapterSchema),
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -48,7 +57,7 @@ export const authOptions: NextAuthOptions = {
   },
   providers: [
     ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-      ? [
+        ? [
           GoogleProvider({
             clientId: env.GOOGLE_CLIENT_ID,
             clientSecret: env.GOOGLE_CLIENT_SECRET,
@@ -58,7 +67,8 @@ export const authOptions: NextAuthOptions = {
                 access_type: "offline",
                 response_type: "code"
               }
-            }
+            },
+            allowDangerousEmailAccountLinking: true, // Allow linking OAuth accounts to existing users with same email
           })
         ]
       : []),
@@ -279,7 +289,7 @@ export const authOptions: NextAuthOptions = {
       
       return session;
     },
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
         try {
           if (!user.email) {
@@ -293,16 +303,55 @@ export const authOptions: NextAuthOptions = {
             .where(eq(users.email, normalizedEmail))
             .limit(1);
           
-          if (!existingUser) {
-            // Create new user if doesn't exist
-            await db.insert(users).values({
-              email: normalizedEmail,
-              name: user.name || null,
-              image: user.image || null,
-              emailVerified: new Date() // Google emails are pre-verified
-            });
+          if (existingUser) {
+            // User exists - check if OAuth account is already linked
+            const [existingAccount] = await db
+              .select()
+              .from(accounts)
+              .where(
+                and(
+                  eq(accounts.provider, account.provider),
+                  eq(accounts.providerAccountId, account.providerAccountId)
+                )
+              )
+              .limit(1);
+
+            if (!existingAccount) {
+              // Link OAuth account to existing user
+              await db.insert(accounts).values({
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                refreshToken: account.refresh_token || null,
+                accessToken: account.access_token || null,
+                expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
+                tokenType: account.token_type || null,
+                scope: account.scope || null,
+                idToken: account.id_token || null,
+                sessionState: account.session_state || null,
+              });
+            }
+
+            // Update user info if needed (name, image from Google)
+            if (user.name || user.image) {
+              await db
+                .update(users)
+                .set({
+                  name: user.name || existingUser.name,
+                  image: user.image || existingUser.image,
+                  emailVerified: existingUser.emailVerified || new Date(), // Mark as verified if not already
+                })
+                .where(eq(users.id, existingUser.id));
+            }
+
+            // Update the user object so NextAuth uses the existing user
+            user.id = existingUser.id;
+            return true;
+          } else {
+            // Create new user - the adapter will handle creating the account
+            return true;
           }
-          return true;
         } catch (error) {
           console.error("Error in signIn callback:", error);
           return false;

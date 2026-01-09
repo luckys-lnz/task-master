@@ -59,10 +59,10 @@ function VerifyEmailContent() {
           // Successfully verified and signed in
           setStatus("success");
           setMessage("Your email has been verified! Redirecting to dashboard...");
+          // Use window.location for a more reliable redirect that works with middleware
           setTimeout(() => {
-            router.push("/dashboard");
-            router.refresh();
-          }, 1500);
+            window.location.href = "/dashboard";
+          }, 1000);
         } else {
           // Should not happen, but handle it
           setStatus("error");

@@ -10,7 +10,8 @@ CREATE TABLE "accounts" (
 	"token_type" text,
 	"scope" text,
 	"id_token" text,
-	"session_state" text
+	"session_state" text,
+	CONSTRAINT "accounts_provider_providerAccountId_unique" UNIQUE("provider", "providerAccountId")
 );
 --> statement-breakpoint
 CREATE TABLE "sessions" (
