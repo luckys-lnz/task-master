@@ -6,15 +6,6 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
-    // Allow verification and password reset pages to be accessed without authentication
-    // These pages handle their own authentication flow
-    if (
-      pathname === "/auth/verify-email" ||
-      pathname === "/auth/reset-password"
-    ) {
-      return NextResponse.next();
-    }
-
     // Check if token is invalid (has error flag or missing id)
     const isTokenInvalid = !token || (token as any).error || !(token as any).id;
 
@@ -32,10 +23,8 @@ export default withAuth(
     }
 
     // If the user is authenticated (and token is valid) and trying to access auth pages
-    // BUT allow verification and password reset pages (already handled above)
-    // Also allow /auth/verify-email to complete its redirect flow
     if (!isTokenInvalid && (
-      (pathname.startsWith("/auth") && pathname !== "/auth/verify-email" && pathname !== "/auth/reset-password") ||
+      pathname.startsWith("/auth") ||
       pathname === "/"
     )) {
       return NextResponse.redirect(new URL("/dashboard", req.url));

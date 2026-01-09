@@ -93,22 +93,22 @@ export function SignUpForm() {
   if (success) {
     return (
       <div>
-        <Card className="border-green-100 bg-green-50/30 dark:border-green-900 dark:bg-green-950/30">
+        <Card className="border-green-100 bg-green-50/30">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
             </div>
             <CardTitle className="text-xl">Account Created Successfully!</CardTitle>
             <CardDescription className="space-y-3">
               <p>
-                Your account has been created. You can sign in now!
+                Your account has been created. {verificationUrl ? (
+                  <>Email verification is available below.</>
+                ) : (
+                  <>Please check your email for verification instructions.</>
+                )}
               </p>
               <p className="text-sm text-muted-foreground">
-                {verificationUrl ? (
-                  <>Email verification link is available below. Verification is optional but recommended.</>
-                ) : (
-                  <>A verification email has been sent. You can verify later or sign in now.</>
-                )}
+                You can sign in now, but verifying your email is recommended for account security.
               </p>
               {verificationUrl && (
                 <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-left transition-spring">
@@ -190,45 +190,37 @@ export function SignUpForm() {
           <CardFooter className="flex flex-col gap-2">
             <Button 
               className="w-full" 
-              onClick={() => router.push("/auth/signin")}
+              variant="outline"
+              onClick={async () => {
+                try {
+                  setIsLoading(true);
+                  const response = await fetch("/api/auth/resend-verification", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: registeredEmail }),
+                  });
+                  const data = await response.json();
+                  if (response.ok) {
+                    setServerError("");
+                    if (data.verificationUrl) {
+                      setVerificationUrl(data.verificationUrl);
+                    }
+                    alert("Verification email resent! Please check your inbox.");
+                  } else {
+                    setServerError(data.error || "Failed to resend verification email");
+                  }
+                } catch {
+                  setServerError("Failed to resend verification email");
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
               disabled={isLoading}
             >
-              Continue to Sign In
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Resend Verification Email
             </Button>
-            {verificationUrl && (
-              <Button 
-                className="w-full" 
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    setIsLoading(true);
-                    const response = await fetch("/api/auth/resend-verification", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ email: registeredEmail }),
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                      setServerError("");
-                      if (data.verificationUrl) {
-                        setVerificationUrl(data.verificationUrl);
-                      }
-                      alert("Verification email resent! Please check your inbox.");
-                    } else {
-                      setServerError(data.error || "Failed to resend verification email");
-                    }
-                  } catch {
-                    setServerError("Failed to resend verification email");
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                disabled={isLoading}
-              >
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Resend Verification Email
-              </Button>
-            )}
+            <Button variant="link" onClick={() => router.push("/auth/signin")}>Back to sign in</Button>
           </CardFooter>
         </Card>
       </div>
@@ -236,9 +228,9 @@ export function SignUpForm() {
   }
 
   return (
-    <div className="grid gap-6 w-full max-w-md mx-auto">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
-        <div className="space-y-3 sm:space-y-4">
+    <div className="grid gap-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
             <div className="relative">
@@ -322,15 +314,8 @@ export function SignUpForm() {
           </Alert>
         )}
 
-        <Button type="submit" className="w-full" disabled={isLoading} size="lg">
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating Account...
-            </>
-          ) : (
-            "Create Account"
-          )}
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Create Account"}
         </Button>
       </form>
 
@@ -345,8 +330,7 @@ export function SignUpForm() {
         variant="outline" 
         type="button"
         className="w-full" 
-        disabled={isLoading}
-        size="lg"
+        disabled={isLoading} 
         onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
       >
         <Icons.google className="mr-2 h-4 w-4" /> Continue with Google

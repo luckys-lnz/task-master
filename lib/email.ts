@@ -20,34 +20,8 @@ export async function sendVerificationEmail(
   token: string
 ): Promise<EmailResult> {
   // Use getBaseUrl() at runtime to ensure correct production URL
-  // This function will reject preview URLs and only use production domains
-  let baseUrl: string;
-  try {
-    baseUrl = getBaseUrl();
-  } catch (error) {
-    console.error('❌ Failed to get base URL for verification email:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to determine application URL',
-    };
-  }
-  
+  const baseUrl = getBaseUrl();
   const verificationUrl = `${baseUrl}/auth/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
-
-  // Log the URL for debugging (always log in production for troubleshooting)
-  console.log(`📧 Verification URL generated: ${verificationUrl}`);
-  
-  // Validate that we're not using a preview URL (double-check)
-  if (verificationUrl.includes('vercel.app') && verificationUrl.match(/-[a-z0-9]{7,}-[a-z0-9-]+\.vercel\.app/i)) {
-    console.error('❌ CRITICAL: Generated verification URL is a preview URL! This will not work.');
-    console.error('   URL:', verificationUrl);
-    console.error('   Please set NEXTAUTH_URL to your production domain in Vercel environment variables.');
-    return {
-      success: false,
-      error: 'Invalid configuration: Cannot use preview URL for email verification. Please set NEXTAUTH_URL to your production domain.',
-      verificationUrl, // Still return it for debugging
-    };
-  }
 
   // In development, log the email
   if (env.NODE_ENV === "development") {
@@ -139,32 +113,8 @@ export async function sendPasswordResetEmail(
   token: string
 ): Promise<EmailResult> {
   // Use getBaseUrl() at runtime to ensure correct production URL
-  // This function will reject preview URLs and only use production domains
-  let baseUrl: string;
-  try {
-    baseUrl = getBaseUrl();
-  } catch (error) {
-    console.error('❌ Failed to get base URL for password reset email:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to determine application URL',
-    };
-  }
-  
+  const baseUrl = getBaseUrl();
   const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
-  
-  // Log the URL for debugging
-  console.log(`📧 Password reset URL generated: ${resetUrl}`);
-  
-  // Validate that we're not using a preview URL
-  if (resetUrl.includes('vercel.app') && resetUrl.match(/-[a-z0-9]{7,}-[a-z0-9-]+\.vercel\.app/i)) {
-    console.error('❌ CRITICAL: Generated password reset URL is a preview URL! This will not work.');
-    return {
-      success: false,
-      error: 'Invalid configuration: Cannot use preview URL for password reset. Please set NEXTAUTH_URL to your production domain.',
-      verificationUrl: resetUrl,
-    };
-  }
 
   // In development, log the email
   if (env.NODE_ENV === "development") {

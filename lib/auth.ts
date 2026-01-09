@@ -5,9 +5,10 @@ import GoogleProvider from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "./db";
 import { compare } from "bcryptjs";
-import { users, accounts, sessions, verificationTokens } from "./db/schema";
+import { users } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { env } from "./env";
+import { normalizeEmail } from "./auth-utils";
 import { sanitizeEmail, validateInputSecurity } from "./security";
 import { rateLimit } from "./rate-limit";
 
@@ -23,12 +24,7 @@ declare module "next-auth" {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  } as any), // Type assertion needed due to camelCase property names mapping to snake_case DB columns
+  adapter: DrizzleAdapter(db),
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -56,7 +52,6 @@ export const authOptions: NextAuthOptions = {
           GoogleProvider({
             clientId: env.GOOGLE_CLIENT_ID,
             clientSecret: env.GOOGLE_CLIENT_SECRET,
-            allowDangerousEmailAccountLinking: true, // Allow linking OAuth accounts to existing users with same email
             authorization: {
               params: {
                 prompt: "select_account",
@@ -187,7 +182,7 @@ export const authOptions: NextAuthOptions = {
 
           // Check if email is verified (optional - you can make this required)
           // For now, we'll allow unverified users but could add a check here
-          // if (!user.emailVerified) {
+          // if (!user.email_verified) {
           //   throw new Error("Please verify your email address before signing in. Check your inbox for the verification link.");
           // }
 
@@ -285,39 +280,37 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async signIn({ user, account }) {
-      // Let DrizzleAdapter handle user creation and account linking automatically
-      // The adapter will:
-      // 1. Create user if doesn't exist
-      // 2. Link OAuth account to existing user (if allowDangerousEmailAccountLinking is enabled)
-      // 3. Create session
-      
       if (account?.provider === "google") {
-        // Validate that email exists (required for account linking)
-        if (!user.email) {
-          console.error("Google OAuth sign-in failed: No email provided");
+        try {
+          if (!user.email) {
+            return false;
+          }
+
+          const normalizedEmail = normalizeEmail(user.email);
+          const [existingUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, normalizedEmail))
+            .limit(1);
+          
+          if (!existingUser) {
+            // Create new user if doesn't exist
+            await db.insert(users).values({
+              email: normalizedEmail,
+              name: user.name || null,
+              image: user.image || null,
+              emailVerified: new Date() // Google emails are pre-verified
+            });
+          }
+          return true;
+        } catch (error) {
+          console.error("Error in signIn callback:", error);
           return false;
         }
-        
-        // Allow the adapter to handle the rest
-        return true;
       }
-      
       return true;
     },
     async redirect({ url, baseUrl }) {
-      // Log for debugging (only in development or if there's an issue)
-      if (process.env.NODE_ENV === 'development' || baseUrl.includes('vercel.app')) {
-        console.log('🔀 NextAuth redirect:', { url, baseUrl, NEXTAUTH_URL: process.env.NEXTAUTH_URL });
-      }
-      
-      // Validate baseUrl is not a preview URL
-      if (baseUrl.includes('vercel.app') && baseUrl.match(/-[a-z0-9]{7,}-[a-z0-9-]+\.vercel\.app/i)) {
-        console.error('❌ CRITICAL: NextAuth baseUrl is a preview URL! This will cause authentication issues.');
-        console.error('   baseUrl:', baseUrl);
-        console.error('   Please set NEXTAUTH_URL to your production domain in Vercel environment variables.');
-        // Still allow the redirect but log the error
-      }
-      
       // If url is a relative URL, make it absolute
       if (url.startsWith("/")) {
         return `${baseUrl}${url}`;
