@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckSquare, Loader2, AlertCircle, Mail, CheckCircle2 } from "lucide-react";
@@ -41,33 +40,32 @@ function VerifyEmailContent() {
 
     async function verifyEmail() {
       try {
-        // Automatically sign in using the email-verification provider
-        // This provider will verify the email token, mark email as verified, and sign the user in
+        // Verify email via API route
         setStatus("loading");
-        setMessage("Verifying your email and signing you in...");
+        setMessage("Verifying your email...");
 
-        const result = await signIn("email-verification", {
-          email: email,
-          token: token,
-          redirect: false,
+        const response = await fetch("/api/auth/verify-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, token }),
         });
 
-        if (result?.error) {
+        const data = await response.json();
+
+        if (!response.ok) {
           setStatus("error");
-          setMessage("Verification failed. The link may have expired or is invalid. Please request a new verification email.");
-        } else if (result?.ok) {
-          // Successfully verified and signed in
-          setStatus("success");
-          setMessage("Your email has been verified! Redirecting to dashboard...");
-          // Use window.location for a more reliable redirect that works with middleware
-          setTimeout(() => {
-            window.location.href = "/dashboard";
-          }, 1000);
-        } else {
-          // Should not happen, but handle it
-          setStatus("error");
-          setMessage("Verification failed. Please try again.");
+          setMessage(data.error || "Verification failed. The link may have expired or is invalid. Please request a new verification email.");
+          return;
         }
+
+        // Successfully verified
+        setStatus("success");
+        setMessage("Your email has been verified! Redirecting to sign in...");
+        
+        // Redirect to sign in page with success message
+        setTimeout(() => {
+          window.location.href = "/auth/signin?verified=true";
+        }, 1500);
       } catch (error) {
         setStatus("error");
         setMessage(

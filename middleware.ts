@@ -6,27 +6,11 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
-    // Check if token is invalid (has error flag or missing id)
-    const isTokenInvalid = !token || (token as any).error || !(token as any).id;
+    const isAuth = !!token;
+    const isAuthPage = pathname.startsWith("/auth");
 
-    // If token is invalid and trying to access protected routes, redirect to sign in
-    if (isTokenInvalid) {
-      if (pathname.startsWith("/dashboard")) {
-        const response = NextResponse.redirect(new URL("/auth/signin", req.url));
-        // Clear the session cookie
-        response.cookies.delete("next-auth.session-token");
-        response.cookies.delete("__Secure-next-auth.session-token");
-        return response;
-      }
-      // For other routes, allow through (they'll handle auth themselves)
-      return NextResponse.next();
-    }
-
-    // If the user is authenticated (and token is valid) and trying to access auth pages
-    if (!isTokenInvalid && (
-      pathname.startsWith("/auth") ||
-      pathname === "/"
-    )) {
+    // Redirect authenticated users away from login pages
+    if (isAuth && isAuthPage) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
@@ -34,16 +18,28 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: () => true, // Let the middleware function handle the auth logic
+      authorized: ({ token, req }) => {
+        const pathname = req.nextUrl.pathname;
+
+        // Routes requiring authentication
+        const protectedRoutes = ["/dashboard"];
+
+        const isProtected = protectedRoutes.some((route) =>
+          pathname.startsWith(route)
+        );
+
+        if (isProtected) return !!token;
+
+        return true; // allow public pages
+      },
     },
   }
 );
 
-// Only run middleware on specific routes
+// Middleware matchers
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/auth/:path*",
-    "/"
+    "/auth/:path*", // login pages
   ],
-}; 
+};
