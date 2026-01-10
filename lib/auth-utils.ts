@@ -18,6 +18,7 @@ export function normalizeEmail(email: string): string {
 /**
  * Validate that a user exists in the database
  * Returns the user if found, null otherwise
+ * Handles connection timeouts gracefully
  */
 export async function validateUserExists(userId: string) {
   try {
@@ -29,7 +30,15 @@ export async function validateUserExists(userId: string) {
     
     return user || null;
   } catch (error) {
-    console.error("Error validating user existence:", error);
+    // Log the error but don't throw - allows graceful degradation
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error validating user existence:", errorMessage);
+    
+    // Check for connection timeout specifically
+    if (errorMessage.includes("timeout") || errorMessage.includes("Connection terminated")) {
+      console.warn("Database connection timeout - user validation skipped");
+    }
+    
     return null;
   }
 }
@@ -161,42 +170,56 @@ export async function clearPasswordResetToken(userId: string): Promise<void> {
 export async function checkAccountLockedAndGetUser(
   email: string
 ): Promise<{ id: string; hashed_password: string | null; email: string | null; name: string | null; image: string | null; emailVerified: Date | null; locked_until: Date | null; failed_login_attempts: string | null } | null> {
-  const [user] = await db
-    .select({ 
-      id: users.id,
-      email: users.email,
-      name: users.name,
-      image: users.image,
-      hashed_password: users.hashed_password,
-      emailVerified: users.emailVerified,
-      locked_until: users.locked_until,
-      failed_login_attempts: users.failed_login_attempts
-    })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-
-  if (!user) {
-    return null;
-  }
-
-  // Check if account is locked
-  if (user.locked_until && user.locked_until > new Date()) {
-    return null; // Account is locked
-  }
-
-  // Clear lock if expired
-  if (user.locked_until && user.locked_until <= new Date()) {
-    await db
-      .update(users)
-      .set({
-        failed_login_attempts: "0",
-        locked_until: null,
+  try {
+    const [user] = await db
+      .select({ 
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        image: users.image,
+        hashed_password: users.hashed_password,
+        emailVerified: users.emailVerified,
+        locked_until: users.locked_until,
+        failed_login_attempts: users.failed_login_attempts
       })
-      .where(eq(users.email, email));
-  }
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
 
-  return user;
+    if (!user) {
+      return null;
+    }
+
+    // Check if account is locked
+    if (user.locked_until && user.locked_until > new Date()) {
+      return null; // Account is locked
+    }
+
+    // Clear lock if expired (wrap in try/catch to prevent blocking)
+    if (user.locked_until && user.locked_until <= new Date()) {
+      try {
+        await db
+          .update(users)
+          .set({
+            failed_login_attempts: "0",
+            locked_until: null,
+          })
+          .where(eq(users.email, email));
+      } catch (updateError) {
+        // Log but don't throw - user can still be returned
+        console.warn("Failed to clear expired lock:", updateError);
+      }
+    }
+
+    return user;
+  } catch (error) {
+    // Handle connection timeouts and other DB errors gracefully
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Database error in checkAccountLockedAndGetUser:", errorMessage);
+    
+    // Re-throw to be caught by authorize() function
+    throw error;
+  }
 }
 
 /**

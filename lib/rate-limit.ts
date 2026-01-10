@@ -69,12 +69,50 @@ export function rateLimit(
 
 /**
  * Get client identifier from request
+ * Handles both Node.js requests (NextAuth internal) and Fetch requests (browser)
  */
-export function getClientIdentifier(req: Request): string {
-  // Try to get IP from headers (common in production with proxies)
-  const forwarded = req.headers.get("x-forwarded-for");
-  const realIp = req.headers.get("x-real-ip");
-  const ip = forwarded?.split(",")[0] || realIp || "unknown";
+export function getClientIdentifier(req: any): string {
+  try {
+    // Case 1: Node.js request object (NextAuth internal calls)
+    // NextAuth passes a Node.js request-like object with headers as object
+    if (req && typeof req === "object" && req.headers) {
+      // Check if it's a Node.js headers object (not a Headers instance)
+      if (typeof req.headers === "object" && !req.headers.get) {
+        // Node.js request - headers are a plain object
+        const forwarded = req.headers["x-forwarded-for"] || req.headers["X-Forwarded-For"];
+        const realIp = req.headers["x-real-ip"] || req.headers["X-Real-Ip"];
+        const socketIp = req.socket?.remoteAddress;
+        
+        if (forwarded) {
+          return typeof forwarded === "string" ? forwarded.split(",")[0].trim() : String(forwarded).split(",")[0].trim();
+        }
+        if (realIp) {
+          return typeof realIp === "string" ? realIp : String(realIp);
+        }
+        if (socketIp) {
+          return socketIp;
+        }
+      }
+    }
 
-  return ip;
+    // Case 2: Fetch Request object (browser/client-side)
+    // Headers is a Headers instance with .get() method
+    if (req?.headers?.get) {
+      const forwarded = req.headers.get("x-forwarded-for");
+      const realIp = req.headers.get("x-real-ip");
+      
+      if (forwarded) {
+        return forwarded.split(",")[0].trim();
+      }
+      if (realIp) {
+        return realIp;
+      }
+    }
+  } catch (error) {
+    console.error("Error extracting client IP:", error);
+  }
+
+  // Fallback to unknown if we can't determine IP
+  // This prevents rate limiting from breaking authentication
+  return "unknown";
 }

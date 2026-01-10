@@ -16,19 +16,32 @@ if (typeof window === 'undefined') {
   }
 }
 
-const pool = new Pool({
-  connectionString: env.DATABASE_URL,
-  // Supabase requires SSL connections
-  ssl: env.DATABASE_URL?.includes('supabase.co') 
-    ? { rejectUnauthorized: false } 
-    : (env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),
-  // Connection pool configuration for better performance
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection cannot be established
-})
+// Singleton pattern for Next.js to prevent multiple DB connections
+// This ensures we reuse the same pool across hot reloads and serverless functions
+const globalForDb = global as unknown as {
+  pool?: Pool;
+  db?: ReturnType<typeof drizzle>;
+};
 
-export const db = drizzle(pool, { schema: schema });
+export const pool =
+  globalForDb.pool ??
+  new Pool({
+    connectionString: env.DATABASE_URL,
+    // Supabase requires SSL connections
+    ssl: env.DATABASE_URL?.includes('supabase.co') 
+      ? { rejectUnauthorized: false } 
+      : (env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),
+    // Connection pool configuration - reduced to avoid Supabase connection limits
+    max: 5, // Maximum number of clients in the pool (reduced from 20)
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection cannot be established
+  });
+
+export const db = globalForDb.db ?? drizzle(pool, { schema: schema });
+
+// Store in global to prevent multiple instances during hot reloads
+if (!globalForDb.pool) globalForDb.pool = pool;
+if (!globalForDb.db) globalForDb.db = db;
 
 // Test the connection
 pool.on('error', (err: Error) => {
