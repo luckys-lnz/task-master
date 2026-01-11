@@ -87,12 +87,12 @@ export const authOptions: NextAuthOptions = {
         const normalizedEmail = normalizeEmail(sanitizedEmail);
 
         // Rate limiting
-        const clientIp = getClientIdentifier(req) || "unknown";
-        const ipRate = rateLimit(`signin:ip:${clientIp}`, 10, 15 * 60 * 1000);
-        const emailRate = rateLimit(`signin:email:${normalizedEmail}`, 5, 15 * 60 * 1000);
-        if (!ipRate.allowed || !emailRate.allowed) {
-          throw new Error("Too many login attempts. Try again later.");
-        }
+        // const clientIp = getClientIdentifier(req) || "unknown";
+        // const ipRate = rateLimit(`signin:ip:${clientIp}`, 10, 15 * 60 * 1000);
+        // const emailRate = rateLimit(`signin:email:${normalizedEmail}`, 5, 15 * 60 * 1000);
+        // if (!ipRate.allowed || !emailRate.allowed) {
+        //   throw new Error("Too many login attempts. Try again later.");
+        // }
 
         // Fetch user
         const user = await checkAccountLockedAndGetUser(normalizedEmail);
