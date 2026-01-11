@@ -19,7 +19,7 @@ import { compare } from "bcryptjs";
 import { env } from "./env";
 import { normalizeEmail, checkAccountLockedAndGetUser, incrementFailedLoginAttempts, resetFailedLoginAttempts } from "./auth-utils";
 import { sanitizeEmail, validateInputSecurity } from "./security";
-import { rateLimit, getClientIdentifier } from "./rate-limit";
+// import { rateLimit, getClientIdentifier } from "./rate-limit";
 
 declare module "next-auth" {
   interface Session {
@@ -75,7 +75,7 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: { email: { label: "Email", type: "email" }, password: { label: "Password", type: "password" } },
-      async authorize(credentials, req) {
+      async authorize(credentials, _req) {
         if (!credentials?.email || !credentials?.password) return null;
 
         const sanitizedEmail = sanitizeEmail(credentials.email);

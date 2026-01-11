@@ -3,6 +3,7 @@ import { Pool } from 'pg'
 import * as schema from './schema'
 import 'dotenv/config'
 import { env, validateEnv } from '../env'
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 // Validate environment variables
 if (typeof window === 'undefined') {
@@ -20,7 +21,7 @@ if (typeof window === 'undefined') {
 // This ensures we reuse the same pool across hot reloads and serverless functions
 const globalForDb = global as unknown as {
   pool?: Pool;
-  db?: ReturnType<typeof drizzle>;
+  db?: NodePgDatabase<typeof schema>;
 };
 
 export const pool =
@@ -37,7 +38,7 @@ export const pool =
     connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection cannot be established
   });
 
-export const db = globalForDb.db ?? drizzle(pool, { schema: schema });
+export const db: NodePgDatabase<typeof schema> = globalForDb.db ?? drizzle(pool, { schema: schema });
 
 // Store in global to prevent multiple instances during hot reloads
 if (!globalForDb.pool) globalForDb.pool = pool;
