@@ -51,7 +51,7 @@ export function DashboardClient({ userName, dbConnected }: DashboardClientProps)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto px-4 py-6 sm:py-8">
+      <div className="container mx-auto px-4 pt-20 sm:pt-24 pb-6 sm:pb-8">
         {/* Enhanced Header Section */}
         <div className="mb-8 space-y-6">
           <div

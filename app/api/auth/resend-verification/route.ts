@@ -5,7 +5,8 @@ import { eq } from "drizzle-orm";
 import { generateEmailVerificationToken, normalizeEmail } from "@/lib/auth-utils";
 import { sendVerificationEmail } from "@/lib/email";
 import { handleApiError, ValidationError } from "@/lib/errors";
-import { rateLimit, getClientIdentifier } from "@/lib/rate-limit";
+import { emailVerificationLimiter } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/security/get-ip";
 import * as z from "zod";
 
 const resendSchema = z.object({
@@ -14,10 +15,10 @@ const resendSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    // Rate limiting
-    const clientId = getClientIdentifier(req);
-    const limit = rateLimit(clientId, 3, 15 * 60 * 1000); // 3 requests per 15 minutes
-    if (!limit.allowed) {
+    // Rate limiting by IP
+    const ip = getClientIp(req);
+    const { success } = await emailVerificationLimiter.limit(ip);
+    if (!success) {
       return NextResponse.json(
         {
           error: "Too many requests. Please try again later.",

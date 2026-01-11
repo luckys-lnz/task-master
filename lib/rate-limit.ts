@@ -1,118 +1,218 @@
 /**
- * Simple in-memory rate limiting utility
- * For production, consider using Redis or a dedicated rate limiting service
+ * Production-ready rate limiting with Upstash Redis
+ * Uses sliding window algorithm for distributed rate limiting
  */
 
-interface RateLimitStore {
-  [key: string]: {
-    count: number;
-    resetTime: number;
-  };
-}
-
-const store: RateLimitStore = {};
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
 /**
- * Simple rate limiter
- * @param identifier - Unique identifier (e.g., IP address, user ID, email)
- * @param maxRequests - Maximum number of requests allowed
- * @param windowMs - Time window in milliseconds
- * @returns true if request is allowed, false if rate limited
+ * Extract real client IP from request
+ * Handles Vercel and NextAuth Request objects correctly
+ */
+export function getClientIp(req: Request | any): string {
+  // Handle Fetch Request object (standard web Request)
+  if (req && typeof req === "object" && req.headers) {
+    // Check if it's a Headers instance (Fetch API)
+    if (req.headers instanceof Headers || typeof req.headers.get === "function") {
+      return (
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+        req.headers.get("x-real-ip") ??
+        req.headers.get("cf-connecting-ip") ??
+        "0.0.0.0"
+      );
+    }
+    
+    // Handle Node.js request object (NextAuth internal calls)
+    // Headers are a plain object
+    if (typeof req.headers === "object") {
+      const forwarded = req.headers["x-forwarded-for"] || req.headers["X-Forwarded-For"];
+      const realIp = req.headers["x-real-ip"] || req.headers["X-Real-Ip"];
+      const cfIp = req.headers["cf-connecting-ip"] || req.headers["CF-Connecting-IP"];
+      
+      if (forwarded) {
+        const ip = typeof forwarded === "string" ? forwarded : String(forwarded);
+        return ip.split(",")[0]?.trim() ?? "0.0.0.0";
+      }
+      if (realIp) {
+        return typeof realIp === "string" ? realIp : String(realIp);
+      }
+      if (cfIp) {
+        return typeof cfIp === "string" ? cfIp : String(cfIp);
+      }
+    }
+  }
+
+  // Fallback
+  return "0.0.0.0";
+}
+
+/**
+ * Initialize Redis client
+ * Uses environment variables: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN
+ */
+let redis: Redis | null = null;
+let redisInitialized = false;
+
+function getRedis(): Redis | null {
+  if (redisInitialized) {
+    return redis;
+  }
+
+  redisInitialized = true;
+
+  // Check if Upstash environment variables are set
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    console.warn(
+      "⚠️  Upstash Redis not configured. Rate limiting will not work.\n" +
+      "   Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.\n" +
+      "   Get them from: https://console.upstash.com/"
+    );
+    return null;
+  }
+
+  try {
+    redis = new Redis({
+      url,
+      token,
+    });
+    return redis;
+  } catch (error) {
+    console.error("Failed to initialize Upstash Redis:", error);
+    return null;
+  }
+}
+
+/**
+ * Login rate limiter
+ * 5 attempts per 10 minutes using sliding window
+ */
+export const loginLimiter = (() => {
+  const redisClient = getRedis();
+  
+  if (!redisClient) {
+    // Return a no-op limiter if Redis is not available
+    return {
+      limit: async () => ({
+        success: true,
+        limit: 5,
+        remaining: 5,
+        reset: Date.now() + 600000,
+      }),
+    };
+  }
+
+  return new Ratelimit({
+    redis: redisClient,
+    limiter: Ratelimit.slidingWindow(5, "10 m"),
+    analytics: true,
+  });
+})();
+
+/**
+ * Registration rate limiter
+ * 5 attempts per 15 minutes using sliding window
+ */
+export const registrationLimiter = (() => {
+  const redisClient = getRedis();
+  
+  if (!redisClient) {
+    return {
+      limit: async () => ({
+        success: true,
+        limit: 5,
+        remaining: 5,
+        reset: Date.now() + 900000,
+      }),
+    };
+  }
+
+  return new Ratelimit({
+    redis: redisClient,
+    limiter: Ratelimit.slidingWindow(5, "15 m"),
+    analytics: true,
+  });
+})();
+
+/**
+ * Password reset rate limiter
+ * 3 attempts per hour using sliding window
+ */
+export const passwordResetLimiter = (() => {
+  const redisClient = getRedis();
+  
+  if (!redisClient) {
+    return {
+      limit: async () => ({
+        success: true,
+        limit: 3,
+        remaining: 3,
+        reset: Date.now() + 3600000,
+      }),
+    };
+  }
+
+  return new Ratelimit({
+    redis: redisClient,
+    limiter: Ratelimit.slidingWindow(3, "1 h"),
+    analytics: true,
+  });
+})();
+
+/**
+ * Email verification rate limiter
+ * 5 attempts per 15 minutes using sliding window
+ */
+export const emailVerificationLimiter = (() => {
+  const redisClient = getRedis();
+  
+  if (!redisClient) {
+    return {
+      limit: async () => ({
+        success: true,
+        limit: 5,
+        remaining: 5,
+        reset: Date.now() + 900000,
+      }),
+    };
+  }
+
+  return new Ratelimit({
+    redis: redisClient,
+    limiter: Ratelimit.slidingWindow(5, "15 m"),
+    analytics: true,
+  });
+})();
+
+/**
+ * Legacy function for backward compatibility
+ * @deprecated Use specific limiters (loginLimiter, registrationLimiter, etc.)
  */
 export function rateLimit(
-  identifier: string,
+  _identifier: string,
   maxRequests: number,
   windowMs: number
 ): { allowed: boolean; remaining: number; resetAt: number } {
-  const now = Date.now();
-  const key = identifier;
-
-  // Clean up expired entries periodically (every 1000 calls)
-  if (Math.random() < 0.001) {
-    for (const k in store) {
-      if (store[k].resetTime < now) {
-        delete store[k];
-      }
-    }
-  }
-
-  const entry = store[key];
-
-  if (!entry || entry.resetTime < now) {
-    // Create new entry or reset expired entry
-    store[key] = {
-      count: 1,
-      resetTime: now + windowMs,
-    };
-    return {
-      allowed: true,
-      remaining: maxRequests - 1,
-      resetAt: now + windowMs,
-    };
-  }
-
-  if (entry.count >= maxRequests) {
-    return {
-      allowed: false,
-      remaining: 0,
-      resetAt: entry.resetTime,
-    };
-  }
-
-  entry.count++;
+  console.warn(
+    "rateLimit() is deprecated. Use specific limiters (loginLimiter, registrationLimiter, etc.) instead."
+  );
+  
+  // Return allowed for backward compatibility
   return {
     allowed: true,
-    remaining: maxRequests - entry.count,
-    resetAt: entry.resetTime,
+    remaining: maxRequests - 1,
+    resetAt: Date.now() + windowMs,
   };
 }
 
 /**
- * Get client identifier from request
- * Handles both Node.js requests (NextAuth internal) and Fetch requests (browser)
+ * Legacy function for backward compatibility
+ * @deprecated Use getClientIp() instead
  */
 export function getClientIdentifier(req: any): string {
-  try {
-    // Case 1: Node.js request object (NextAuth internal calls)
-    // NextAuth passes a Node.js request-like object with headers as object
-    if (req && typeof req === "object" && req.headers) {
-      // Check if it's a Node.js headers object (not a Headers instance)
-      if (typeof req.headers === "object" && !req.headers.get) {
-        // Node.js request - headers are a plain object
-        const forwarded = req.headers["x-forwarded-for"] || req.headers["X-Forwarded-For"];
-        const realIp = req.headers["x-real-ip"] || req.headers["X-Real-Ip"];
-        const socketIp = req.socket?.remoteAddress;
-        
-        if (forwarded) {
-          return typeof forwarded === "string" ? forwarded.split(",")[0].trim() : String(forwarded).split(",")[0].trim();
-        }
-        if (realIp) {
-          return typeof realIp === "string" ? realIp : String(realIp);
-        }
-        if (socketIp) {
-          return socketIp;
-        }
-      }
-    }
-
-    // Case 2: Fetch Request object (browser/client-side)
-    // Headers is a Headers instance with .get() method
-    if (req?.headers?.get) {
-      const forwarded = req.headers.get("x-forwarded-for");
-      const realIp = req.headers.get("x-real-ip");
-      
-      if (forwarded) {
-        return forwarded.split(",")[0].trim();
-      }
-      if (realIp) {
-        return realIp;
-      }
-    }
-  } catch (error) {
-    console.error("Error extracting client IP:", error);
-  }
-
-  // Fallback to unknown if we can't determine IP
-  // This prevents rate limiting from breaking authentication
-  return "unknown";
+  console.warn("getClientIdentifier() is deprecated. Use getClientIp() instead.");
+  return getClientIp(req);
 }

@@ -7,7 +7,8 @@ import * as z from "zod";
 import { handleApiError, ValidationError } from "@/lib/errors";
 import { normalizeEmail, generateEmailVerificationToken } from "@/lib/auth-utils";
 import { sendVerificationEmail } from "@/lib/email";
-import { rateLimit, getClientIdentifier } from "@/lib/rate-limit";
+import { registrationLimiter } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/security/get-ip";
 import { sanitizeName, sanitizeEmail, validatePasswordStrength, validateInputSecurity, validateRequestBodySize } from "@/lib/security";
 
 const registerSchema = z.object({
@@ -29,10 +30,10 @@ const registerSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    // Rate limiting
-    const clientId = getClientIdentifier(req);
-    const limit = rateLimit(clientId, 5, 15 * 60 * 1000); // 5 registrations per 15 minutes
-    if (!limit.allowed) {
+    // Rate limiting by IP (prevents registration spam)
+    const ip = getClientIp(req);
+    const { success } = await registrationLimiter.limit(ip);
+    if (!success) {
       return NextResponse.json(
         {
           error: "Too many requests. Please try again later.",
