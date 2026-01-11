@@ -1,25 +1,21 @@
 /**
  * Security module exports
  * Centralized exports for cleaner imports
- * 
- * Note: This is in lib/security/ directory, not lib/security.ts
- * Import from "@/lib/security/get-ip", "@/lib/security/rate-limit", etc.
- * or use the specific paths below
  */
 
 export { getClientIp } from "./get-ip";
 export {
-  loginLimiter,
+  loginIpLimiter,
+  loginEmailLimiter,
   registrationLimiter,
   passwordResetLimiter,
   emailVerificationLimiter,
+  createIpLimiter,
+  createEmailLimiter,
+  createCompositeLimiter,
+  type RateLimiter,
+  type LimitResult,
 } from "./rate-limit";
-export {
-  checkAccountLocked,
-  incrementFailedAttempts,
-  resetFailedAttempts,
-  type UserLoginData,
-} from "./login-guards";
 
 // Re-export existing security utilities
 export {

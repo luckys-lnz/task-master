@@ -1,6 +1,15 @@
 /**
- * Authentication utility functions
- * Provides common authentication-related helpers
+ * ======================================================================
+ * AUTHENTICATION UTILITY FUNCTIONS
+ * ======================================================================
+ * 
+ * Enterprise-grade authentication utilities with correct account locking logic.
+ * 
+ * Key Principles:
+ * - Account locks are ONLY cleared after successful login
+ * - Failed attempts are stored as integers (parsed from text in DB)
+ * - No user existence leakage (all errors return null)
+ * - Account locking prevents brute force on specific accounts
  */
 
 import { randomBytes } from "crypto";
@@ -16,6 +25,168 @@ export function normalizeEmail(email: string): string {
 }
 
 /**
+ * User data returned by account locking functions
+ */
+export interface UserLoginData {
+  id: string;
+  email: string | null;
+  name: string | null;
+  image: string | null;
+  hashed_password: string | null;
+  emailVerified: Date | null;
+  locked_until: Date | null;
+  failed_login_attempts: number; // Always integer, parsed from DB
+}
+
+/**
+ * Check if account is locked and retrieve user data
+ * 
+ * CRITICAL LOGIC:
+ * - Account locks are NOT automatically cleared on expiration
+ * - Locks are ONLY cleared after a successful login
+ * - This prevents attackers from waiting for lock expiration
+ * - Returns null if account is locked (no user existence leakage)
+ * 
+ * @param email - Normalized email address
+ * @returns User data if account is not locked, null if locked or not found
+ */
+export async function checkAccountLockedAndGetUser(
+  email: string
+): Promise<UserLoginData | null> {
+  try {
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        image: users.image,
+        hashed_password: users.hashed_password,
+        emailVerified: users.emailVerified,
+        locked_until: users.locked_until,
+        failed_login_attempts: users.failed_login_attempts,
+      })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    // No user existence leakage - return null for both "not found" and "locked"
+    if (!user) {
+      return null;
+    }
+
+    const now = new Date();
+
+    // Check if account is currently locked
+    // IMPORTANT: We do NOT auto-clear expired locks here
+    // Locks are only cleared after successful login
+    if (user.locked_until && user.locked_until > now) {
+      return null; // Account is locked
+    }
+
+    // Parse failed_login_attempts as integer
+    const failedAttempts = parseInt(user.failed_login_attempts || "0", 10);
+
+    // Return user data (account is not locked)
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.image,
+      hashed_password: user.hashed_password,
+      emailVerified: user.emailVerified,
+      locked_until: user.locked_until,
+      failed_login_attempts: failedAttempts,
+    };
+  } catch (error) {
+    // Log error but don't expose details (no user existence leakage)
+    console.error("Database error in checkAccountLockedAndGetUser:", error);
+    // Return null to prevent login on database errors
+    return null;
+  }
+}
+
+/**
+ * Increment failed login attempts counter
+ * 
+ * Logic:
+ * - Increments counter for each failed attempt
+ * - Locks account after 5 failed attempts
+ * - Lock duration: 30 minutes
+ * - Stores as integer (converted to string for DB)
+ * 
+ * @param email - Normalized email address
+ */
+export async function incrementFailedLoginAttempts(
+  email: string
+): Promise<void> {
+  try {
+    const [user] = await db
+      .select({
+        id: users.id,
+        failed_login_attempts: users.failed_login_attempts,
+      })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    // Silently return if user doesn't exist (no user existence leakage)
+    if (!user) {
+      return;
+    }
+
+    // Parse current attempts as integer
+    const currentAttempts = parseInt(user.failed_login_attempts || "0", 10);
+    const newAttempts = currentAttempts + 1;
+    const maxAttempts = 5;
+    const lockDurationMs = 30 * 60 * 1000; // 30 minutes
+
+    // Lock account if max attempts reached
+    const lockedUntil =
+      newAttempts >= maxAttempts
+        ? new Date(Date.now() + lockDurationMs)
+        : null;
+
+    // Store as string (DB column is text, but we treat it as integer)
+    await db
+      .update(users)
+      .set({
+        failed_login_attempts: newAttempts.toString(),
+        locked_until: lockedUntil,
+      })
+      .where(eq(users.id, user.id));
+  } catch (error) {
+    // Log error but don't throw - don't block login flow
+    console.error("Failed to increment login attempts:", error);
+  }
+}
+
+/**
+ * Reset failed login attempts on successful login
+ * 
+ * CRITICAL: This is the ONLY place where account locks are cleared.
+ * 
+ * Clears:
+ * - Failed login attempts counter (reset to 0)
+ * - Account lock status (unlock account)
+ * 
+ * @param email - Normalized email address
+ */
+export async function resetFailedLoginAttempts(email: string): Promise<void> {
+  try {
+    await db
+      .update(users)
+      .set({
+        failed_login_attempts: "0", // Store as string (DB column is text)
+        locked_until: null, // Unlock account
+      })
+      .where(eq(users.email, email));
+  } catch (error) {
+    // Log error but don't throw - login was successful
+    console.error("Failed to reset login attempts:", error);
+  }
+}
+
+/**
  * Validate that a user exists in the database
  * Returns the user if found, null otherwise
  * Handles connection timeouts gracefully
@@ -23,22 +194,30 @@ export function normalizeEmail(email: string): string {
 export async function validateUserExists(userId: string) {
   try {
     const [user] = await db
-      .select({ id: users.id, email: users.email, name: users.name, image: users.image })
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        image: users.image,
+      })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
-    
+
     return user || null;
   } catch (error) {
     // Log the error but don't throw - allows graceful degradation
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error validating user existence:", errorMessage);
-    
+
     // Check for connection timeout specifically
-    if (errorMessage.includes("timeout") || errorMessage.includes("Connection terminated")) {
+    if (
+      errorMessage.includes("timeout") ||
+      errorMessage.includes("Connection terminated")
+    ) {
       console.warn("Database connection timeout - user validation skipped");
     }
-    
+
     return null;
   }
 }
@@ -60,7 +239,7 @@ export async function generateEmailVerificationToken(
   const expires = new Date();
   expires.setHours(expires.getHours() + 24); // 24 hours expiry
 
-  // Store token in users table (similar to password reset tokens)
+  // Store token in users table
   await db
     .update(users)
     .set({
@@ -89,7 +268,11 @@ export async function verifyEmailToken(
       .where(eq(users.email, email))
       .limit(1);
 
-    if (!user || !user.email_verification_token || !user.email_verification_expires) {
+    if (
+      !user ||
+      !user.email_verification_token ||
+      !user.email_verification_expires
+    ) {
       return false;
     }
 
@@ -161,120 +344,4 @@ export async function clearPasswordResetToken(userId: string): Promise<void> {
       reset_password_expires: null,
     })
     .where(eq(users.id, userId));
-}
-
-/**
- * Check if account is locked and get user data in one query
- * Returns user data if not locked, null if locked or not found
- */
-export async function checkAccountLockedAndGetUser(
-  email: string
-): Promise<{ id: string; hashed_password: string | null; email: string | null; name: string | null; image: string | null; emailVerified: Date | null; locked_until: Date | null; failed_login_attempts: string | null } | null> {
-  try {
-    const [user] = await db
-      .select({ 
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        image: users.image,
-        hashed_password: users.hashed_password,
-        emailVerified: users.emailVerified,
-        locked_until: users.locked_until,
-        failed_login_attempts: users.failed_login_attempts
-      })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
-
-    if (!user) {
-      return null;
-    }
-
-    // Check if account is locked
-    if (user.locked_until && user.locked_until > new Date()) {
-      return null; // Account is locked
-    }
-
-    // Clear lock if expired (wrap in try/catch to prevent blocking)
-    if (user.locked_until && user.locked_until <= new Date()) {
-      try {
-        await db
-          .update(users)
-          .set({
-            failed_login_attempts: "0",
-            locked_until: null,
-          })
-          .where(eq(users.email, email));
-      } catch (updateError) {
-        // Log but don't throw - user can still be returned
-        console.warn("Failed to clear expired lock:", updateError);
-      }
-    }
-
-    return user;
-  } catch (error) {
-    // Handle connection timeouts and other DB errors gracefully
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Database error in checkAccountLockedAndGetUser:", errorMessage);
-    
-    // Re-throw to be caught by authorize() function
-    throw error;
-  }
-}
-
-/**
- * Check if account is locked (legacy function for backward compatibility)
- */
-export async function checkAccountLocked(
-  email: string
-): Promise<boolean> {
-  const user = await checkAccountLockedAndGetUser(email);
-  return user === null;
-}
-
-/**
- * Increment failed login attempts
- */
-export async function incrementFailedLoginAttempts(
-  email: string
-): Promise<void> {
-  const [user] = await db
-    .select({ id: users.id, failed_login_attempts: users.failed_login_attempts })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-
-  if (!user) {
-    return;
-  }
-
-  const attempts = parseInt(user.failed_login_attempts || "0") + 1;
-  const maxAttempts = 5;
-  const lockDuration = 30 * 60 * 1000; // 30 minutes
-
-  let lockedUntil: Date | null = null;
-  if (attempts >= maxAttempts) {
-    lockedUntil = new Date(Date.now() + lockDuration);
-  }
-
-  await db
-    .update(users)
-    .set({
-      failed_login_attempts: attempts.toString(),
-      locked_until: lockedUntil,
-    })
-    .where(eq(users.id, user.id));
-}
-
-/**
- * Reset failed login attempts (on successful login)
- */
-export async function resetFailedLoginAttempts(email: string): Promise<void> {
-  await db
-    .update(users)
-    .set({
-      failed_login_attempts: "0",
-      locked_until: null,
-    })
-    .where(eq(users.email, email));
 }

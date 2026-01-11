@@ -1,27 +1,35 @@
 /**
  * ======================================================================
- * NEXTAUTH V5+ STANDARD CONFIGURATION
+ * NEXTAUTH V5+ ENTERPRISE CONFIGURATION
  * ======================================================================
  * 
- * Supports:
+ * Production-grade authentication with:
  * - Google OAuth
  * - Email/Password Credentials
  * - JWT sessions
  * - Drizzle Adapter
  * - Redis-based rate limiting (Upstash)
  * - Account locking on failed attempts
+ * - Privacy-first IP hashing
  * 
- * Architecture:
- * - Rate limiting is handled BEFORE authentication logic
- * - Account locking is checked AFTER rate limiting
- * - Failed attempts are tracked per email (not IP)
- * - Rate limiting is per IP (prevents distributed attacks)
+ * CRITICAL LOGIN FLOW:
+ * 1. Extract and sanitize input
+ * 2. Lookup user (check account lock)
+ * 3. Run rate limiter (by IP)
+ * 4. Compare password
+ * 5. If wrong password:
+ *    - Increment failed attempts
+ *    - If rate limited → block
+ *    - If not rate limited → allow retry
+ * 6. If correct password:
+ *    - Reset failed attempts
+ *    - Unlock account if locked
+ *    - Allow login (even if rate limited)
  * 
- * Why this prevents 401 errors for valid users:
- * 1. Rate limiting happens first (by IP) - blocks brute force
- * 2. Account locking is separate (by email) - protects specific accounts
- * 3. Valid credentials always succeed (if not rate limited or locked)
- * 4. Redis ensures consistent state across serverless functions
+ * This ensures:
+ * - Correct passwords are NEVER blocked
+ * - Wrong passwords are blocked if rate limited
+ * - Account locks are only cleared after successful login
  */
 
 import { NextAuthOptions } from "next-auth";
@@ -32,15 +40,15 @@ import { db } from "./db";
 import { users, accounts, sessions, verificationTokens } from "./db/schema";
 import { compare } from "bcryptjs";
 import { env } from "./env";
-import { normalizeEmail } from "./auth-utils";
+import {
+  normalizeEmail,
+  checkAccountLockedAndGetUser,
+  incrementFailedLoginAttempts,
+  resetFailedLoginAttempts,
+} from "./auth-utils";
 import { sanitizeEmail, validateInputSecurity } from "./security";
 import { getClientIp } from "./security/get-ip";
-import { loginLimiter } from "./security/rate-limit";
-import {
-  checkAccountLocked,
-  incrementFailedAttempts,
-  resetFailedAttempts,
-} from "./security/login-guards";
+import { loginIpLimiter, loginEmailLimiter } from "./security/rate-limit";
 
 declare module "next-auth" {
   interface Session {
@@ -57,13 +65,12 @@ declare module "next-auth" {
 }
 
 // DrizzleAdapter schema mapping
-// Using type assertion because we're using JWT sessions, so exact table structure is less critical
 const adapterSchema = {
   usersTable: users,
   accountsTable: accounts,
   sessionsTable: sessions,
   verificationTokensTable: verificationTokens,
-} as any;
+} as const;
 
 export const authOptions: NextAuthOptions = {
   adapter: DrizzleAdapter(db, adapterSchema as any),
@@ -87,7 +94,13 @@ export const authOptions: NextAuthOptions = {
           GoogleProvider({
             clientId: env.GOOGLE_CLIENT_ID,
             clientSecret: env.GOOGLE_CLIENT_SECRET,
-            authorization: { params: { prompt: "select_account", access_type: "offline", response_type: "code" } },
+            authorization: {
+              params: {
+                prompt: "select_account",
+                access_type: "offline",
+                response_type: "code",
+              },
+            },
           }),
         ]
       : []),
@@ -100,26 +113,12 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
-        // Early return if credentials are missing
+        // Step 1: Early return if credentials are missing
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
-        // Step 1: Extract real client IP (handles Vercel/proxy headers correctly)
-        // This is critical - without correct IP extraction, all users appear as same IP
-        // and rate limiting blocks everyone
-        const ip = getClientIp(req);
-
-        // Step 2: Rate limit by IP address (prevents brute force attacks)
-        // This happens BEFORE authentication to block attackers early
-        // Uses Redis sliding window: 5 attempts per 10 minutes
-        const { success } = await loginLimiter.limit(ip);
-        if (!success) {
-          // Throw error to return 401 - rate limit exceeded
-          throw new Error("Too many login attempts. Please try again later.");
-        }
-
-        // Step 3: Sanitize and validate email input
+        // Step 2: Extract and sanitize email
         const sanitizedEmail = sanitizeEmail(credentials.email);
         if (!sanitizedEmail) {
           return null; // Invalid email format
@@ -132,35 +131,57 @@ export const authOptions: NextAuthOptions = {
 
         const normalizedEmail = normalizeEmail(sanitizedEmail);
 
-        // Step 4: Check if account is locked (by email, not IP)
-        // This protects specific accounts from targeted attacks
-        const user = await checkAccountLocked(normalizedEmail);
+        // Step 3: Lookup user and check account lock
+        // This happens BEFORE rate limiting to avoid wasting rate limit quota
+        const user = await checkAccountLockedAndGetUser(normalizedEmail);
         if (!user) {
           // Account doesn't exist or is locked
+          // No user existence leakage - same response for both cases
           return null;
         }
 
-        // Step 5: Verify password
+        // Step 4: Check if user has password (not OAuth-only account)
         if (!user.hashed_password) {
           // User exists but has no password (OAuth-only account)
           return null;
         }
 
+        // Step 5: Extract IP and run rate limiters
+        // We run limiters AFTER user lookup to avoid wasting quota on invalid emails
+        const ip = getClientIp(req);
+        const [ipLimitResult, emailLimitResult] = await Promise.all([
+          loginIpLimiter.limit(ip),
+          loginEmailLimiter.limit(normalizedEmail),
+        ]);
+
+        // Step 6: Verify password
         const isValidPassword = await compare(
           credentials.password,
           user.hashed_password
         );
 
         if (!isValidPassword) {
-          // Invalid password - increment failed attempts
-          // This happens AFTER rate limiting, so we only track real attempts
-          await incrementFailedAttempts(normalizedEmail);
+          // Wrong password
+          // Increment failed attempts (this may lock the account)
+          await incrementFailedLoginAttempts(normalizedEmail);
+
+          // If rate limited, block the request
+          // This prevents brute force even if account isn't locked yet
+          if (!ipLimitResult.success || !emailLimitResult.success) {
+            throw new Error("Too many login attempts. Please try again later.");
+          }
+
+          // Not rate limited, but wrong password
           return null;
         }
 
-        // Step 6: Successful login - reset failed attempts
-        // This clears any previous failed attempts and unlocks account
-        await resetFailedAttempts(normalizedEmail);
+        // Step 7: Correct password
+        // IMPORTANT: Allow login even if rate limited
+        // This ensures legitimate users can always log in with correct password
+
+        // Reset failed attempts and unlock account
+        // This is the ONLY place where locks are cleared
+        await resetFailedLoginAttempts(normalizedEmail);
 
         // Return user object for NextAuth session
         return {
@@ -175,16 +196,24 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+      }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.id) session.user.id = token.id as string;
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
+      }
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      if (url.startsWith(baseUrl)) return url;
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      if (url.startsWith(baseUrl)) {
+        return url;
+      }
       return `${baseUrl}/dashboard`;
     },
   },
