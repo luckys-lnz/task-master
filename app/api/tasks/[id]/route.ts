@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { mapTaskToCamelCase, isTaskOverdue } from "@/lib/utils";
 import { handleApiError } from "@/lib/errors";
-import { validateTaskCanBeUpdated, isTaskLocked } from "@/lib/task-utils";
+import { isTaskLocked } from "@/lib/task-utils";
 
 const updateTaskSchema = z.object({
   title: z.string(),
