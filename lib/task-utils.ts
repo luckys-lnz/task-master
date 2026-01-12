@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type * as schema from "@/lib/db/schema";
 

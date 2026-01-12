@@ -1,5 +1,5 @@
 import type { Task } from "@/lib/types";
-import { getTimeUntilDue, getTaskHealthStatus, formatTimeRemaining } from "@/lib/utils";
+import { getTimeUntilDue, formatTimeRemaining } from "@/lib/utils";
 
 /**
  * Get warning level for a task based on time until due
@@ -57,11 +57,6 @@ export function getTaskWarning(task: Task): TaskWarning {
   }
 
   const hoursUntilDue = timeUntilDue / (1000 * 60 * 60);
-  const healthStatus = getTaskHealthStatus({
-    due_date: new Date(task.dueDate),
-    due_time: task.dueTime || null,
-    status: task.status,
-  });
 
   if (timeUntilDue < 0) {
     return {

@@ -55,7 +55,7 @@ export class NotificationService {
       }, timeToDue))
     }
     // Overdue (if not completed)
-    if (timeToDue < 0 && todo.status !== "COMPLETED") {
+    if (timeToDue < 0) {
       this.notifyTodoistStyle(todo, "overdue")
     } else {
       // Schedule overdue notification right after due time
