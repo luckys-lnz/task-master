@@ -15,7 +15,7 @@ import { headers } from "next/headers";
  * 
  * Or use external cron service to call this endpoint
  */
-export async function GET(req: Request) {
+export async function GET() {
   try {
     // Optional: Add authentication for cron endpoint
     const headersList = headers();
