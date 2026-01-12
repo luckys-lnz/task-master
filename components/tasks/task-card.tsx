@@ -20,7 +20,7 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
   const [isOverdue, setIsOverdue] = useState(false);
 
   useEffect(() => {
-    if (task.dueDate && !task.completed) {
+    if (task.dueDate && task.status !== "COMPLETED") {
       const dueDate = new Date(task.dueDate);
       if (task.dueTime) {
         const [hours, minutes] = task.dueTime.split(":").map(Number);
@@ -41,7 +41,7 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
     setIsLoading(true);
     try {
       await onUpdate(task.id, {
-        completed: checked
+        status: checked ? "COMPLETED" : "PENDING"
       });
     } catch (error) {
       console.error("Error updating task status:", error);
@@ -66,11 +66,11 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div className="flex items-start space-x-2">
           <Checkbox
-            checked={task.completed}
+            checked={task.status === "COMPLETED"}
             onCheckedChange={handleStatusChange}
             disabled={isLoading}
           />
-          <CardTitle className={task.completed ? "line-through text-muted-foreground" : ""}>
+          <CardTitle className={task.status === "COMPLETED" ? "line-through text-muted-foreground" : ""}>
             {task.title}
           </CardTitle>
         </div>

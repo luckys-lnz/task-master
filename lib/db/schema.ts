@@ -11,6 +11,15 @@ export const TaskPriority = {
 
 export type TaskPriorityType = typeof TaskPriority[keyof typeof TaskPriority];
 
+// Define task status enum values
+export const TaskStatus = {
+  PENDING: "PENDING",
+  COMPLETED: "COMPLETED",
+  OVERDUE: "OVERDUE",
+} as const;
+
+export type TaskStatusType = typeof TaskStatus[keyof typeof TaskStatus];
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name"),
@@ -41,9 +50,12 @@ export const tasks = pgTable('tasks', {
   due_time: text("due_time"),
   priority: text("priority", { enum: ["LOW", "MEDIUM", "HIGH", "URGENT"] }).notNull().default("LOW"),
   category: text("category"),
+  status: text("status", { enum: ["PENDING", "COMPLETED", "OVERDUE"] }).notNull().default("PENDING"),
+  completed_at: timestamp("completed_at", { mode: "date" }),
+  overdue_at: timestamp("overdue_at", { mode: "date" }),
+  locked_after_due: boolean("locked_after_due").default(true).notNull(),
   tags: text("tags").array(),
   position: text("position"),
-  completed: boolean('completed').default(false).notNull(),
   attachments: text("attachments").array(),
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),

@@ -5,7 +5,8 @@ import { tasks, subtasks } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import * as z from "zod";
 import { handleApiError } from "@/lib/errors";
-import { mapTaskToCamelCase } from "@/lib/utils";
+import { mapTaskToCamelCase, isTaskOverdue } from "@/lib/utils";
+import { updateOverdueTasks } from "@/lib/task-utils";
 
 const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -17,6 +18,7 @@ const taskSchema = z.object({
   category: z.string().optional(),
   notes: z.string().optional(),
   attachments: z.array(z.string()).optional(),
+  locked_after_due: z.boolean().optional().default(true),
   subtasks: z.array(z.object({
     title: z.string(),
     completed: z.boolean().optional().default(false)
@@ -27,6 +29,9 @@ const taskSchema = z.object({
 export async function GET() {
   try {
     const session = await getValidatedSession();
+
+    // First, update any overdue tasks
+    await updateOverdueTasks();
 
     const userTasks = await db.query.tasks.findMany({
       where: eq(tasks.user_id, session.user.id),
@@ -66,6 +71,22 @@ export async function POST(req: Request) {
 
     const position = lastTask ? String(Number(lastTask.position) + 1) : "0";
 
+    // Determine initial status - check if task is already overdue
+    let initialStatus: "PENDING" | "COMPLETED" | "OVERDUE" = "PENDING";
+    let overdueAt: Date | null = null;
+    
+    if (body.due_date) {
+      const taskToCheck = {
+        due_date: new Date(body.due_date),
+        due_time: body.due_time || null,
+        status: "PENDING" as const,
+      };
+      if (isTaskOverdue(taskToCheck)) {
+        initialStatus = "OVERDUE";
+        overdueAt = new Date();
+      }
+    }
+
     // Insert new task
     const [newTask] = await db.insert(tasks).values({
       user_id: session.user.id,
@@ -79,7 +100,9 @@ export async function POST(req: Request) {
       notes: body.notes || null,
       attachments: body.attachments || [],
       position,
-      completed: false,
+      status: initialStatus,
+      overdue_at: overdueAt,
+      locked_after_due: body.locked_after_due ?? true,
     }).returning();
 
     // Insert subtasks if any

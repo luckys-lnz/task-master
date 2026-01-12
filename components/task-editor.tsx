@@ -31,6 +31,9 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
   const [dueDate, setDueDate] = useState<Date | undefined>(task?.dueDate ? new Date(task.dueDate) : undefined)
   const [dueTime, setDueTime] = useState(task?.dueTime || "")
   const [notes, setNotes] = useState(task?.notes || "")
+  
+  // Check if task is locked (overdue and locked_after_due is true)
+  const isLocked = task?.status === "OVERDUE" && task?.lockedAfterDue === true
   const [subtasks, setSubtasks] = useState<Array<{
     id: string;
     title: string;
@@ -101,6 +104,11 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // If locked, don't allow saving edits (only completion is allowed via status change)
+    if (isLocked) {
+      return;
+    }
+
     if (!validateForm()) {
       return
     }
@@ -153,7 +161,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={setCategory} disabled={isLocked}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -173,6 +181,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
               <Select
                 value={priority}
                 onValueChange={(v) => setPriority(v as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT')}
+                disabled={isLocked}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select priority" />
@@ -189,7 +198,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
 
           <div className="space-y-2">
             <Label>Tags</Label>
-            <TagInput tags={tags} setTags={setTags} />
+            <TagInput tags={tags} setTags={setTags} disabled={isLocked} />
           </div>
 
           <div className="space-y-2">
@@ -197,6 +206,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
               date={dueDate}
               time={dueTime}
               onDateChange={(date) => {
+                if (isLocked) return;
                 setDueDate(date)
                 if (errors.dueDate) {
                   setErrors((prev) => {
@@ -207,6 +217,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                 }
               }}
               onTimeChange={(time) => {
+                if (isLocked) return;
                 setDueTime(time)
                 if (errors.dueTime) {
                   setErrors((prev) => {
@@ -217,6 +228,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                 }
               }}
               onClear={() => {
+                if (isLocked) return;
                 setDueDate(undefined)
                 setDueTime("")
                 setErrors((prev) => {
@@ -227,6 +239,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                 })
               }}
               label="Due Date & Time"
+              disabled={isLocked}
             />
             {(errors.dueDate || errors.dueTime) && (
               <p className="text-sm text-destructive flex items-center gap-1">
@@ -238,6 +251,11 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
 
           <div className="space-y-2">
             <Label>Subtasks</Label>
+            {isLocked && (
+              <p className="text-sm text-muted-foreground">
+                Subtasks cannot be edited for locked overdue tasks.
+              </p>
+            )}
             <div className="space-y-2">
               <div className="flex gap-2">
                 <Input
@@ -245,8 +263,9 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                   onChange={(e) => setNewSubtaskTitle(e.target.value)}
                   placeholder="Add a subtask"
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSubtask())}
+                  disabled={isLocked}
                 />
-                <Button type="button" onClick={handleAddSubtask} size="sm">
+                <Button type="button" onClick={handleAddSubtask} size="sm" disabled={isLocked}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -257,6 +276,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                       type="checkbox"
                       checked={subtask.completed}
                       onChange={() => {
+                        if (isLocked) return;
                         const newSubtasks = [...subtasks]
                         const idx = newSubtasks.findIndex(st => st.id === subtask.id)
                         if (idx !== -1) {
@@ -265,13 +285,15 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                         }
                       }}
                       className="w-4 h-4"
+                      disabled={isLocked}
                     />
-                    <span className="flex-1">{subtask.title}</span>
+                    <span className={`flex-1 ${isLocked ? 'opacity-50' : ''}`}>{subtask.title}</span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveSubtask(subtask.id)}
+                      disabled={isLocked}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -290,8 +312,9 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
                 multiple
                 className="flex-1"
                 id="attachments"
+                disabled={isLocked}
               />
-              <Label htmlFor="attachments" className="cursor-pointer">
+              <Label htmlFor="attachments" className={isLocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}>
                 <Paperclip className="h-4 w-4" />
               </Label>
             </div>
@@ -304,7 +327,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
 
           <div className="space-y-2">
             <Label>Notes</Label>
-            <RichTextEditor value={notes} onChange={setNotes} />
+            <RichTextEditor value={notes} onChange={setNotes} readOnly={isLocked} />
           </div>
         </CardContent>
 
@@ -312,14 +335,14 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" disabled={isLoading || isLocked}>
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
                 {task ? "Updating..." : "Adding..."}
               </div>
             ) : (
-              task ? "Update Task" : "Add Task"
+              task ? (isLocked ? "Task Locked" : "Update Task") : "Add Task"
             )}
           </Button>
         </CardFooter>

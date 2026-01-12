@@ -32,11 +32,11 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
   const [justCompleted, setJustCompleted] = React.useState(false)
   const [showConfetti, setShowConfetti] = React.useState(false)
   const notificationRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const prevCompletedRef = React.useRef(todo.completed)
+  const prevCompletedRef = React.useRef(todo.status === "COMPLETED")
 
   // Check if task is expired
   useEffect(() => {
-    if (!todo.dueDate || todo.completed) {
+    if (!todo.dueDate || todo.status === "COMPLETED") {
       setIsExpired(false)
       return undefined
     }
@@ -66,7 +66,7 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
 
   // Notification for due tasks
   useEffect(() => {
-    if (!todo.dueDate || todo.completed) {
+    if (!todo.dueDate || todo.status === "COMPLETED") {
       return undefined
     }
 
@@ -106,7 +106,7 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
     }
 
     return undefined
-  }, [todo.dueDate, todo.dueTime, todo.completed, todo.title])
+  }, [todo.dueDate, todo.dueTime, todo.status, todo.title])
 
   const priorityColors = {
     LOW: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
@@ -151,8 +151,8 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
         setShowConfetti(false)
       }, 600)
     }
-    prevCompletedRef.current = todo.completed
-  }, [todo.completed])
+    prevCompletedRef.current = todo.status === "COMPLETED"
+  }, [todo.status])
 
   if (isEditing) {
     return (
@@ -186,15 +186,15 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
           <div className="flex items-center h-5 mt-1">
             <GripVertical className="h-4 w-4 text-muted-foreground mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             <Checkbox
-              checked={todo.completed}
+              checked={todo.status === "COMPLETED"}
               onCheckedChange={(checked) => {
-                onUpdate(todo.id, { completed: !!checked });
+                onUpdate(todo.id, { status: checked ? "COMPLETED" : "PENDING" });
               }}
               id={`todo-${todo.id}`}
               className={cn(
                 "transition-spring-fast",
                 "hover:scale-110 active:scale-95",
-                todo.completed && "data-[state=checked]:spring-bounce"
+                todo.status === "COMPLETED" && "data-[state=checked]:spring-bounce"
               )}
             />
           </div>
@@ -203,7 +203,7 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
               <div className="flex-1">
                 <label
                   htmlFor={`todo-${todo.id}`}
-                  className={`text-lg font-medium ${todo.completed ? "line-through text-muted-foreground" : ""} ${isExpired ? "text-red-600 dark:text-red-400" : ""}`}
+                  className={`text-lg font-medium ${todo.status === "COMPLETED" ? "line-through text-muted-foreground" : ""} ${isExpired ? "text-red-600 dark:text-red-400" : ""}`}
                 >
                   {todo.title}
                 </label>
@@ -225,6 +225,16 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
+                {todo.status === "OVERDUE" && (
+                  <Badge variant="destructive" className="bg-red-600 dark:bg-red-700">
+                    Overdue
+                  </Badge>
+                )}
+                {todo.status === "COMPLETED" && todo.overdueAt && (
+                  <Badge variant="outline" className="border-orange-500 text-orange-600 dark:text-orange-400">
+                    Completed Late
+                  </Badge>
+                )}
                 {todo.category && <Badge variant="outline">{todo.category}</Badge>}
                 {todo.priority && (
                   <Badge className={priorityColors[todo.priority as keyof typeof priorityColors]}>

@@ -15,6 +15,20 @@
       "when": 1758498610293,
       "tag": "0001_auth_security_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758498610294,
+      "tag": "0002_fix_expires_at_bigint",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1758498610295,
+      "tag": "0003_upgrade_task_status_system",
+      "breakpoints": true
     }
   ]
 }

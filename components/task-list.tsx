@@ -48,22 +48,44 @@ export default function TodoList() {
   const [isFilterTransitioning, setIsFilterTransitioning] = useState(false)
   const { toast } = useToast()
 
-  // Calculate overdue tasks
+  // Calculate overdue tasks (including completed tasks that were overdue)
   const overdueCount = useMemo(() => {
     if (!todos) return 0;
     
     return todos.filter(todo => {
-      if (!todo.dueDate || todo.completed) return false;
+      if (!todo.dueDate) return false;
       
-      const dueDate = new Date(todo.dueDate);
-      if (todo.dueTime) {
-        const [hours, minutes] = todo.dueTime.split(":").map(Number);
-        dueDate.setHours(hours, minutes, 0, 0);
-      } else {
-        dueDate.setHours(23, 59, 59, 999);
+      // Currently overdue
+      if (todo.status === "OVERDUE") return true;
+      
+      // Completed but was overdue (has overdue_at timestamp or completed after due date)
+      if (todo.status === "COMPLETED") {
+        if (todo.overdueAt) return true;
+        
+        const dueDate = new Date(todo.dueDate);
+        if (todo.dueTime) {
+          const [hours, minutes] = todo.dueTime.split(":").map(Number);
+          dueDate.setHours(hours, minutes, 0, 0);
+        } else {
+          dueDate.setHours(23, 59, 59, 999);
+        }
+        const completedAt = todo.completedAt ? new Date(todo.completedAt) : null;
+        return completedAt && completedAt > dueDate;
       }
       
-      return dueDate < new Date();
+      // Pending but past due date
+      if (todo.status === "PENDING") {
+        const dueDate = new Date(todo.dueDate);
+        if (todo.dueTime) {
+          const [hours, minutes] = todo.dueTime.split(":").map(Number);
+          dueDate.setHours(hours, minutes, 0, 0);
+        } else {
+          dueDate.setHours(23, 59, 59, 999);
+        }
+        return dueDate < new Date();
+      }
+      
+      return false;
     }).length;
   }, [todos]);
 
@@ -100,7 +122,7 @@ export default function TodoList() {
       // Alt+C: Clear completed tasks
       if (e.altKey && e.key === "c") {
         e.preventDefault()
-        const completedIds = todos.filter((t) => t.completed).map((t) => t.id)
+        const completedIds = todos.filter((t) => t.status === "COMPLETED").map((t) => t.id)
         completedIds.forEach((id) => deleteTodo(id))
         toast({
           title: "Completed tasks cleared",
@@ -131,9 +153,35 @@ export default function TodoList() {
         }
 
         if (filter.status === "completed") {
-          filtered = filtered.filter((todo) => todo.completed)
+          filtered = filtered.filter((todo) => todo.status === "COMPLETED")
         } else if (filter.status === "active") {
-          filtered = filtered.filter((todo) => !todo.completed)
+          filtered = filtered.filter((todo) => todo.status === "PENDING")
+        } else if (filter.status === "overdue") {
+          // Show tasks that are currently OVERDUE or were completed after being overdue
+          filtered = filtered.filter((todo) => {
+            if (!todo.dueDate) return false
+            
+            // Currently overdue
+            if (todo.status === "OVERDUE") return true
+            
+            // Completed but was overdue (has overdue_at or completed after due date)
+            if (todo.status === "COMPLETED") {
+              if (todo.overdueAt) return true
+              
+              // Check if completed after due date
+              const dueDate = new Date(todo.dueDate)
+              if (todo.dueTime) {
+                const [hours, minutes] = todo.dueTime.split(":").map(Number)
+                dueDate.setHours(hours, minutes, 0, 0)
+              } else {
+                dueDate.setHours(23, 59, 59, 999)
+              }
+              const completedAt = todo.completedAt ? new Date(todo.completedAt) : null
+              return completedAt && completedAt > dueDate
+            }
+            
+            return false
+          })
         }
 
         if (filter.dueDate === "today") {
@@ -157,16 +205,29 @@ export default function TodoList() {
             return dueDate >= today && dueDate <= nextWeek
           })
         } else if (filter.dueDate === "overdue") {
+          // Filter by overdue in dueDate filter (when status is not already "overdue")
           filtered = filtered.filter((todo) => {
-            if (!todo.dueDate || todo.completed) return false
-            const dueDate = new Date(todo.dueDate)
-            if (todo.dueTime) {
-              const [hours, minutes] = todo.dueTime.split(":").map(Number)
-              dueDate.setHours(hours, minutes, 0, 0)
-            } else {
-              dueDate.setHours(23, 59, 59, 999)
+            if (!todo.dueDate) return false
+            
+            // Currently overdue
+            if (todo.status === "OVERDUE") return true
+            
+            // Completed but was overdue
+            if (todo.status === "COMPLETED" && todo.overdueAt) return true
+            
+            // Pending but past due date
+            if (todo.status === "PENDING") {
+              const dueDate = new Date(todo.dueDate)
+              if (todo.dueTime) {
+                const [hours, minutes] = todo.dueTime.split(":").map(Number)
+                dueDate.setHours(hours, minutes, 0, 0)
+              } else {
+                dueDate.setHours(23, 59, 59, 999)
+              }
+              return dueDate < new Date()
             }
-            return dueDate < new Date()
+            
+            return false
           })
         }
 
@@ -182,12 +243,24 @@ export default function TodoList() {
   const handleDragEnd = (result: any) => {
     if (!result.destination) return
 
-    const items = Array.from(filteredTodos)
-    const [reorderedItem] = items.splice(result.source.index, 1)
-    items.splice(result.destination.index, 0, reorderedItem)
+    // Don't do anything if dropped in the same position
+    if (result.destination.index === result.source.index) return
 
-    setFilteredTodos(items)
-    reorderTodos(items.map((item) => item.id))
+    try {
+      const items = Array.from(filteredTodos)
+      const [reorderedItem] = items.splice(result.source.index, 1)
+      items.splice(result.destination.index, 0, reorderedItem)
+
+      setFilteredTodos(items)
+      reorderTodos(items.map((item) => item.id))
+    } catch (error) {
+      console.error("Error handling drag end:", error)
+      toast({
+        title: "Error",
+        description: "Failed to reorder tasks",
+        variant: "destructive",
+      })
+    }
   }
 
   if (error) {
@@ -200,8 +273,23 @@ export default function TodoList() {
 
   return (
     <div className="space-y-6">
-      {/* Use enhanced stats with overdue count */}
-      <TodoStats stats={enhancedStats} />
+      {/* Interactive stats dashboard */}
+      <TodoStats 
+        stats={enhancedStats} 
+        onStatClick={(statKey) => {
+          if (statKey === "completed") {
+            setFilter({ ...filter, status: "completed" })
+          } else if (statKey === "overdue") {
+            setFilter({ ...filter, status: "overdue" })
+          } else if (statKey === "pending") {
+            setFilter({ ...filter, status: "active" })
+          } else if (statKey === "total") {
+            setFilter({ ...filter, status: "all" })
+          } else if (statKey === "dueToday") {
+            setFilter({ ...filter, status: "active", dueDate: "today" })
+          }
+        }}
+      />
 
       {/* Enhanced Filter and Actions Section */}
       <div className="flex flex-col gap-4">
@@ -306,6 +394,13 @@ export default function TodoList() {
                     filter.category !== "all" || filter.priority !== "all" || filter.status !== "all" || filter.dueDate !== "all"
                       ? "filtered"
                       : "tasks"
+                  }
+                  message={
+                    filter.status === "overdue" 
+                      ? "No overdue tasks found. Great job staying on top of your deadlines!"
+                      : filter.status === "completed"
+                      ? "No completed tasks yet. Start completing tasks to see them here!"
+                      : undefined
                   }
                   onAction={!showAddForm ? () => setShowAddForm(true) : undefined}
                   actionLabel="Create Your First Task"

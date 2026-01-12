@@ -1,13 +1,19 @@
+export type TaskStatus = "PENDING" | "COMPLETED" | "OVERDUE";
+export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+
 export interface Task {
   id: string;
   title: string;
   description: string;
   category: string;
-  priority: "LOW"| "MEDIUM"| "HIGH"| "URGENT";
+  priority: TaskPriority;
+  status: TaskStatus;
   tags: string[];
   dueDate: string;
   dueTime: string;
-  completed: boolean;
+  completedAt?: string;
+  overdueAt?: string;
+  lockedAfterDue: boolean;
   notes: string;
   subtasks?: {
     id: string;

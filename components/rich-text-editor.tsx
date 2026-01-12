@@ -5,9 +5,11 @@ import React from "react";
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
+  readOnly?: boolean;
 }
 
-export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, disabled, readOnly }: RichTextEditorProps) {
   return (
     <textarea
       value={value}
@@ -15,6 +17,8 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
       className="w-full p-2 border rounded-md"
       rows={5}
       placeholder="Enter notes..."
+      disabled={disabled}
+      readOnly={readOnly}
     />
   );
 } 

@@ -14,21 +14,35 @@ export function useDatabaseTodos() {
   // Calculate statistics
   const stats = useMemo(() => {
     const total = todos.length
-    const completed = todos.filter((todo) => todo.completed).length
-    const pending = total - completed
+    const completed = todos.filter((todo) => todo.status === "COMPLETED").length
+    const pending = todos.filter((todo) => todo.status === "PENDING").length
+    
+    // Overdue: tasks that are currently OVERDUE OR were completed after being overdue
     const overdue = todos.filter((todo) => {
-      if (!todo.dueDate || todo.completed) return false
-      const dueDate = new Date(todo.dueDate)
-      if (todo.dueTime) {
-        const [hours, minutes] = todo.dueTime.split(":").map(Number)
-        dueDate.setHours(hours, minutes, 0, 0)
-      } else {
-        dueDate.setHours(23, 59, 59, 999)
+      if (!todo.dueDate) return false
+      
+      // Currently overdue (status is OVERDUE)
+      if (todo.status === "OVERDUE") return true
+      
+      // Completed but was overdue (has overdue_at timestamp)
+      if (todo.status === "COMPLETED" && todo.overdueAt) {
+        const dueDate = new Date(todo.dueDate)
+        if (todo.dueTime) {
+          const [hours, minutes] = todo.dueTime.split(":").map(Number)
+          dueDate.setHours(hours, minutes, 0, 0)
+        } else {
+          dueDate.setHours(23, 59, 59, 999)
+        }
+        const completedAt = todo.completedAt ? new Date(todo.completedAt) : null
+        // If completed after due date, it was overdue
+        return completedAt && completedAt > dueDate
       }
-      return dueDate < new Date()
+      
+      return false
     }).length
+    
     const dueToday = todos.filter((todo) => {
-      if (!todo.dueDate || todo.completed) return false
+      if (!todo.dueDate || todo.status === "COMPLETED") return false
       const dueDate = new Date(todo.dueDate)
       const today = new Date()
       return (
@@ -185,13 +199,33 @@ export function useDatabaseTodos() {
   // Reorder tasks
   const reorderTodos = async (orderedIds: string[]) => {
     try {
+      // Optimistically update local state
       const reorderedTodos = orderedIds
         .map((id) => todos.find((todo) => todo.id === id))
         .filter((todo): todo is Task => todo != null)
 
-      // Update the order in your database backend if needed
       setTodos(reorderedTodos)
+
+      // Persist to database
+      const items = orderedIds.map((id, index) => ({
+        id,
+        position: index
+      }))
+
+      const response = await fetch("/api/tasks/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      })
+
+      if (!response.ok) {
+        // Revert on error
+        setTodos(todos)
+        throw new Error("Failed to reorder tasks")
+      }
     } catch (err) {
+      // Revert to original order on error
+      setTodos(todos)
       setError(err instanceof Error ? err : new Error("Failed to reorder todos"))
       toast({
         title: "Error",

@@ -13,6 +13,7 @@ interface TodoStatsProps {
     overdue: number
     dueToday: number
   }
+  onStatClick?: (statKey: "total" | "completed" | "pending" | "overdue" | "dueToday") => void
 }
 
 const statConfig = [
@@ -63,7 +64,7 @@ const statConfig = [
   },
 ]
 
-export function TodoStats({ stats }: TodoStatsProps) {
+export function TodoStats({ stats, onStatClick }: TodoStatsProps) {
   const [mounted, setMounted] = useState(false)
   const [animatedStats, setAnimatedStats] = useState(stats)
 
@@ -118,12 +119,14 @@ export function TodoStats({ stats }: TodoStatsProps) {
               className={cn(
                 "border-2 transition-spring hover:shadow-lg hover:scale-[1.02] group overflow-hidden relative",
                 config.borderColor,
-                mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+                mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
+                onStatClick && "cursor-pointer active:scale-[0.98]"
               )}
               style={{
                 transitionDelay: `${index * 50}ms`,
                 transitionTimingFunction: "var(--spring-ease-out-back)",
               }}
+              onClick={() => onStatClick?.(config.key)}
             >
               <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-300", config.bgGradient)} />
               <CardContent className="p-5 relative z-10">
