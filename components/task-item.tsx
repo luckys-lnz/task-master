@@ -225,16 +225,6 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
-                {todo.status === "OVERDUE" && (
-                  <Badge variant="destructive" className="bg-red-600 dark:bg-red-700">
-                    Overdue
-                  </Badge>
-                )}
-                {todo.status === "COMPLETED" && todo.overdueAt && (
-                  <Badge variant="outline" className="border-orange-500 text-orange-600 dark:text-orange-400">
-                    Completed Late
-                  </Badge>
-                )}
                 {todo.category && <Badge variant="outline">{todo.category}</Badge>}
                 {todo.priority && (
                   <Badge className={priorityColors[todo.priority as keyof typeof priorityColors]}>

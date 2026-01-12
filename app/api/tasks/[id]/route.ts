@@ -112,11 +112,10 @@ export async function PATCH(
         updateData.completed_at = now;
         updateData.overdue_at = null;
       }
-      // OVERDUE → COMPLETED: set completed_at, keep overdue_at to track it was overdue
+      // OVERDUE → COMPLETED: set completed_at, clear overdue_at
       else if (oldStatus === "OVERDUE" && newStatus === "COMPLETED") {
         updateData.completed_at = now;
-        // Keep overdue_at to track that task was completed after being overdue
-        // Don't clear it - this preserves accountability
+        updateData.overdue_at = null;
       }
       // COMPLETED → PENDING: clear completed_at, clear overdue_at if any
       else if (oldStatus === "COMPLETED" && newStatus === "PENDING") {

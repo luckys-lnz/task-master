@@ -15,32 +15,18 @@ export function useDatabaseTodos() {
   const stats = useMemo(() => {
     const total = todos.length
     const completed = todos.filter((todo) => todo.status === "COMPLETED").length
-    const pending = todos.filter((todo) => todo.status === "PENDING").length
-    
-    // Overdue: tasks that are currently OVERDUE OR were completed after being overdue
+    const pending = total - completed
     const overdue = todos.filter((todo) => {
-      if (!todo.dueDate) return false
-      
-      // Currently overdue (status is OVERDUE)
-      if (todo.status === "OVERDUE") return true
-      
-      // Completed but was overdue (has overdue_at timestamp)
-      if (todo.status === "COMPLETED" && todo.overdueAt) {
-        const dueDate = new Date(todo.dueDate)
-        if (todo.dueTime) {
-          const [hours, minutes] = todo.dueTime.split(":").map(Number)
-          dueDate.setHours(hours, minutes, 0, 0)
-        } else {
-          dueDate.setHours(23, 59, 59, 999)
-        }
-        const completedAt = todo.completedAt ? new Date(todo.completedAt) : null
-        // If completed after due date, it was overdue
-        return completedAt && completedAt > dueDate
+      if (!todo.dueDate || todo.status === "COMPLETED") return false
+      const dueDate = new Date(todo.dueDate)
+      if (todo.dueTime) {
+        const [hours, minutes] = todo.dueTime.split(":").map(Number)
+        dueDate.setHours(hours, minutes, 0, 0)
+      } else {
+        dueDate.setHours(23, 59, 59, 999)
       }
-      
-      return false
+      return dueDate < new Date()
     }).length
-    
     const dueToday = todos.filter((todo) => {
       if (!todo.dueDate || todo.status === "COMPLETED") return false
       const dueDate = new Date(todo.dueDate)

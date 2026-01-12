@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 interface EnhancedEmptyStateProps {
   title?: string;
   description?: string;
-  message?: string;
   actionLabel?: string;
   onAction?: () => void;
   variant?: "default" | "tasks" | "filtered";
@@ -18,7 +17,6 @@ interface EnhancedEmptyStateProps {
 export function EnhancedEmptyState({
   title,
   description,
-  message,
   actionLabel = "Get Started",
   onAction,
   variant = "default",
@@ -106,7 +104,7 @@ export function EnhancedEmptyState({
               )}
               style={{ transitionDelay: "400ms" }}
             >
-              {message || config.description}
+              {config.description}
             </p>
           </div>
 

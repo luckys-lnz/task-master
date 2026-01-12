@@ -18,11 +18,10 @@ export function TodoFilter({ onFilterChange, currentFilter }: TodoFilterProps) {
           onFilterChange({ ...currentFilter, status: value })
         }}
       >
-        <TabsList className="grid w-full grid-cols-4 transition-spring-fast">
+        <TabsList className="grid w-full grid-cols-3 transition-spring-fast">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="overdue">Overdue</TabsTrigger>
         </TabsList>
       </Tabs>
 

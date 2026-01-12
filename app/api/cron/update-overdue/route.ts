@@ -9,7 +9,7 @@ import { headers } from "next/headers";
  * {
  *   "crons": [{
  *     "path": "/api/cron/update-overdue",
- *     "schedule": "*/5 * * * *"
+ *     "schedule": "every 5 minutes"
  *   }]
  * }
  * 
