@@ -10,9 +10,10 @@ import { X } from "lucide-react"
 interface TagInputProps {
   tags: string[]
   setTags: (tags: string[]) => void
+  disabled?: boolean
 }
 
-export function TagInput({ tags, setTags }: TagInputProps) {
+export function TagInput({ tags, setTags, disabled = false }: TagInputProps) {
   const [inputValue, setInputValue] = useState("")
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,7 +44,8 @@ export function TagInput({ tags, setTags }: TagInputProps) {
           <button
             type="button"
             onClick={() => removeTag(index)}
-            className="rounded-full hover:bg-muted-foreground/20 p-0.5"
+            disabled={disabled}
+            className="rounded-full hover:bg-muted-foreground/20 p-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="h-3 w-3" />
             <span className="sr-only">Remove {tag}</span>
@@ -55,6 +57,7 @@ export function TagInput({ tags, setTags }: TagInputProps) {
         value={inputValue}
         onChange={handleInputChange}
         onKeyDown={handleInputKeyDown}
+        disabled={disabled}
         className="flex-1 min-w-[120px] border-0 p-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
         placeholder={tags.length === 0 ? "Add tags..." : ""}
       />

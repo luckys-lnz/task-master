@@ -143,7 +143,7 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
   }
 
   React.useEffect(() => {
-    if (!prevCompletedRef.current && todo.completed) {
+    if (!prevCompletedRef.current && todo.status === "COMPLETED") {
       setJustCompleted(true)
       setShowConfetti(true)
       setTimeout(() => {
@@ -174,7 +174,7 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
         className={cn(
           "shadow-sm transition-spring hover-lift group",
           isExpired && "border-red-500 dark:border-red-700",
-          todo.completed && "opacity-75",
+          todo.status === "COMPLETED" && "opacity-75",
           justCompleted && "animate-in fade-in slide-in-from-bottom-2"
         )}
         style={{

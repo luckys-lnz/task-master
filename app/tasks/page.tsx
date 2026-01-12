@@ -53,11 +53,13 @@ export default async function TasksPage() {
                     {task.priority}
                   </span>
                   <span className={`px-2 py-1 rounded-full text-xs ${
-                    task.completed
+                    task.status === 'COMPLETED'
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100'
+                      : task.status === 'OVERDUE'
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'
                       : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'
                   }`}>
-                    {task.completed ? 'done' : 'in-progress'}
+                    {task.status === 'COMPLETED' ? 'done' : task.status === 'OVERDUE' ? 'overdue' : 'in-progress'}
                   </span>
                 </div>
                 {task.due_date && (

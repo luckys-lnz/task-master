@@ -26,7 +26,7 @@ export class NotificationService {
   }
 
   private scheduleNotificationsForTask(todo: Task) {
-    if (todo.completed || !todo.dueDate) return
+    if (todo.status === "COMPLETED" || !todo.dueDate) return
     this.clearScheduled(todo.id)
 
     const dueDate = new Date(todo.dueDate)
@@ -55,7 +55,7 @@ export class NotificationService {
       }, timeToDue))
     }
     // Overdue (if not completed)
-    if (timeToDue < 0 && !todo.completed) {
+    if (timeToDue < 0 && todo.status !== "COMPLETED") {
       this.notifyTodoistStyle(todo, "overdue")
     } else {
       // Schedule overdue notification right after due time
