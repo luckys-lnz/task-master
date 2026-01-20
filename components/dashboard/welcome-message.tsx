@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { motion } from "framer-motion"
-import { Sparkles, Coffee, Sun, Moon, Sunset } from "lucide-react"
+import { Sun, Moon, Sunset } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface WelcomeMessageProps {

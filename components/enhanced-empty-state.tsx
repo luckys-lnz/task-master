@@ -11,7 +11,6 @@ import {
   Rocket,
   Zap,
   FilterX,
-  Sparkles,
   ListTodo
 } from "lucide-react";
 import { cn } from "@/lib/utils";

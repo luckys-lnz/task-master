@@ -55,7 +55,6 @@ export function EditTaskModal({ open, onOpenChange, task, onUpdate }: EditTaskMo
         id: uuidv4(),
         title: newSubtaskTitle,
         completed: false,
-        task_id: task.id
       }
     ])
     setNewSubtaskTitle("")
@@ -79,7 +78,9 @@ export function EditTaskModal({ open, onOpenChange, task, onUpdate }: EditTaskMo
     // Only include subtasks if there are any
     if (subtasks.length > 0) {
       updates.subtasks = subtasks.map(st => ({ 
-        ...st, 
+        id: st.id,
+        title: st.title,
+        completed: st.completed,
         task_id: task.id 
       }))
     } else {

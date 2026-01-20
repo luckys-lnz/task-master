@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import DatePicker, { registerLocale } from "react-datepicker"
+import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
-import { format, startOfDay, isAfter, isSameDay } from "date-fns"
+import { format, startOfDay, isSameDay } from "date-fns"
 import { CalendarIcon, Clock, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,7 @@ export function DateTimePickerV2({
   onDateChange,
   onTimeChange,
   onClear,
-  label,
+  label: _label,
   className,
   disabled = false,
   placeholder = "Select date and time",
@@ -134,7 +134,6 @@ export function DateTimePickerV2({
     if (!selectedDate) return ""
     
     const dateStr = format(selectedDate, "MMM d, yyyy")
-    const timeStr = selectedTime || "No time"
     return `${dateStr}${selectedTime ? ` at ${selectedTime}` : ""}`
   }, [selectedDate, selectedTime])
 
@@ -145,18 +144,6 @@ export function DateTimePickerV2({
     return checkDate >= today
   }
 
-  // Filter out past times if date is today
-  const filterTime = (time: Date) => {
-    if (!selectedDate) return true
-    const today = startOfDay(new Date())
-    const selectedDateOnly = startOfDay(selectedDate)
-    
-    if (isSameDay(selectedDateOnly, today)) {
-      const now = new Date()
-      return time > now
-    }
-    return true
-  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>

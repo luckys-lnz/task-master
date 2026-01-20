@@ -1,17 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { format } from "date-fns"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import type { Task, Subtask } from "@/lib/types"
 import { 
   ChevronDown, 
-  Edit, 
-  Trash2, 
   Calendar,
   Clock,
   AlertCircle
@@ -19,8 +16,6 @@ import {
 import { cn } from "@/lib/utils"
 import { CircularProgress } from "@/components/circular-progress"
 import { EnhancedSubtaskList } from "@/components/enhanced-subtask-list"
-import { TaskDetailSheet } from "@/components/task-detail-sheet"
-import { SwipeableTaskCard } from "@/components/swipeable-task-card"
 
 export type TaskCardVariant = "ultra-minimal" | "premium-modern" | "dark-mode"
 
@@ -34,13 +29,12 @@ interface EnhancedTaskCardProps {
 export function EnhancedTaskCard({ 
   task, 
   onUpdate, 
-  onDelete,
+  onDelete: _onDelete,
   variant = "premium-modern"
 }: EnhancedTaskCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isOverdue, setIsOverdue] = useState(false)
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
-  const [showDetailSheet, setShowDetailSheet] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
 
   // Calculate progress percentage
@@ -78,7 +72,7 @@ export function EnhancedTaskCard({
   // Long press handler
   const handleLongPressStart = useCallback(() => {
     const timer = setTimeout(() => {
-      setShowDetailSheet(true)
+      // Edit functionality removed - use dashboard version
     }, 500) // 500ms long press
     setLongPressTimer(timer)
   }, [])
@@ -159,11 +153,7 @@ export function EnhancedTaskCard({
 
   return (
     <>
-      <SwipeableTaskCard
-        onSwipeLeft={() => {}}
-        onEdit={() => setShowDetailSheet(true)}
-        onDelete={() => onDelete(task.id)}
-      >
+      <div>
         <Card
           ref={cardRef}
           className={cn(
@@ -273,16 +263,7 @@ export function EnhancedTaskCard({
             </Collapsible>
           </div>
         </Card>
-      </SwipeableTaskCard>
-
-      {/* Task Detail Sheet */}
-      <TaskDetailSheet
-        task={task}
-        open={showDetailSheet}
-        onOpenChange={setShowDetailSheet}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />
+      </div>
     </>
   )
 }

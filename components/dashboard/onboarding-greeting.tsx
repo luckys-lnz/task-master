@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { X, Sparkles, CheckCircle2, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
 
 interface OnboardingGreetingProps {
   userName: string
@@ -37,6 +36,8 @@ export function OnboardingGreeting({
       }, 500)
       return () => clearTimeout(timer)
     }
+    
+    return undefined
   }, [userName, isNewUser])
 
   const handleDismiss = () => {
@@ -59,6 +60,7 @@ export function OnboardingGreeting({
       }, 8000)
       return () => clearTimeout(autoDismissTimer)
     }
+    return undefined
   }, [isVisible, isDismissed])
 
   if (!isVisible || isDismissed) return null

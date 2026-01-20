@@ -15,6 +15,7 @@ import { OnboardingGreeting } from "./onboarding-greeting"
 import { WelcomeMessage } from "./welcome-message"
 import type { Task } from "@/lib/types"
 import { isSameDay, isAfter, startOfDay } from "date-fns"
+import { NotificationService } from "@/lib/services/notifications"
 
 interface ComprehensiveDashboardProps {
   userName?: string
@@ -42,12 +43,26 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
     subtasks?: Task["subtasks"]
   } | null>(null)
   const [isFiltering, setIsFiltering] = useState(false)
-  const [prevFilter, setPrevFilter] = useState<FilterType>("all")
   const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Initialize notification service
+  useEffect(() => {
+    if (!mounted || isLoading) return
+    
+    const notificationService = NotificationService.getInstance()
+    
+    // Request notification permission
+    notificationService.requestNotificationPermission()
+    
+    // Start monitoring tasks
+    const cleanup = notificationService.startMonitoring(todos || [])
+    
+    return () => cleanup()
+  }, [mounted, isLoading, todos])
 
   // Check if we should show onboarding after data loads
   useEffect(() => {
@@ -73,7 +88,6 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
     if (filter === activeFilter) return
     
     setIsFiltering(true)
-    setPrevFilter(activeFilter)
     
     // Small delay to show transition state
     setTimeout(() => {
@@ -140,6 +154,36 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
         // "all" - no filtering
         break
     }
+
+    // Sort tasks by due date (earliest first)
+    filtered.sort((a, b) => {
+      // Tasks without due dates go to the end
+      if (!a.dueDate && !b.dueDate) return 0
+      if (!a.dueDate) return 1
+      if (!b.dueDate) return -1
+
+      // Create full date-time objects for accurate comparison
+      const aDate = new Date(a.dueDate)
+      const bDate = new Date(b.dueDate)
+
+      // Apply time if available
+      if (a.dueTime) {
+        const [aHours, aMinutes] = a.dueTime.split(":").map(Number)
+        aDate.setHours(aHours, aMinutes, 0, 0)
+      } else {
+        aDate.setHours(23, 59, 59, 999)
+      }
+
+      if (b.dueTime) {
+        const [bHours, bMinutes] = b.dueTime.split(":").map(Number)
+        bDate.setHours(bHours, bMinutes, 0, 0)
+      } else {
+        bDate.setHours(23, 59, 59, 999)
+      }
+
+      // Sort by date-time (earliest first)
+      return aDate.getTime() - bDate.getTime()
+    })
 
     return filtered
   }, [todos, activeFilter])

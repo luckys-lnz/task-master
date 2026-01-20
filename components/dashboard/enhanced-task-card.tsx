@@ -6,7 +6,7 @@ import { format } from "date-fns"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronDown, Calendar, Clock, Edit, Trash2, Copy } from "lucide-react"
+import { ChevronDown, Calendar, Clock, Pencil, Trash2, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Task } from "@/lib/types"
 import { EnhancedSubtaskList } from "@/components/enhanced-subtask-list"
@@ -37,7 +37,7 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
   useEffect(() => {
     if (!task.dueDate || task.status === "COMPLETED") {
       setIsOverdue(false)
-      return
+      return undefined
     }
 
     const dueDate = new Date(task.dueDate)
@@ -53,7 +53,7 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
 
     // Automatically move overdue tasks to OVERDUE status
     // Use setTimeout to avoid updating during render
-    if (isOverdueNow && task.status !== "COMPLETED" && task.status !== "OVERDUE") {
+    if (isOverdueNow && task.status !== "OVERDUE") {
       const timeoutId = setTimeout(() => {
         onUpdate(task.id, {
           status: "OVERDUE",
@@ -63,6 +63,8 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
       
       return () => clearTimeout(timeoutId)
     }
+    
+    return undefined
   }, [task.dueDate, task.dueTime, task.status, task.id, onUpdate])
 
   const getStatusBadge = () => {
@@ -361,7 +363,7 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
                     } : {}}
                     className="relative z-10"
                   >
-                    <Edit className="h-4 w-4 sm:h-4 sm:w-4" strokeWidth={2.5} />
+                    <Pencil className="h-4 w-4 sm:h-4 sm:w-4" strokeWidth={2.5} />
                   </motion.div>
                   {/* Shine effect on hover */}
                   {!isOverdue && (
