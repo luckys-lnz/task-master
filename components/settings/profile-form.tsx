@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User } from "next-auth";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { AvatarUpload } from "./avatar-upload";
 import { Icons } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/use-toast";
+import { useSession } from "next-auth/react";
 
 const profileSchema = z.object({
   name: z.string().min(3, "Display name must be at least 3 characters").max(100, "Name must be less than 100 characters"),
@@ -28,6 +29,7 @@ interface ProfileFormProps {
 export function ProfileForm({ user }: ProfileFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { update: updateSession } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.image || null);
 
@@ -39,9 +41,69 @@ export function ProfileForm({ user }: ProfileFormProps) {
     },
   });
 
-  const handleAvatarChange = (url: string) => {
+  // Fetch current user's avatar from database on mount
+  useEffect(() => {
+    const fetchCurrentAvatar = async () => {
+      try {
+        const response = await fetch("/api/user/profile", {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          // Use avatar_url if available, otherwise fall back to image
+          const currentAvatar = userData.avatar_url || userData.image || null;
+          if (currentAvatar) {
+            setAvatarUrl(currentAvatar);
+            form.setValue("avatarUrl", currentAvatar);
+            // Update session to reflect current avatar
+            await updateSession({
+              image: currentAvatar,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching current avatar:", error);
+        // Silently fail - user can still use the form
+      }
+    };
+
+    fetchCurrentAvatar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
+  const handleAvatarChange = async (url: string) => {
     setAvatarUrl(url);
     form.setValue("avatarUrl", url);
+    
+    // The upload endpoint already updates the database, so we just need to:
+    // 1. Update the session to reflect the new avatar
+    // 2. Refresh the UI
+    
+    try {
+      // Update NextAuth session to reflect new avatar immediately
+      await updateSession({
+        image: url,
+      });
+
+      // Refresh to update the UI with new avatar
+      router.refresh();
+      
+      toast({
+        title: "Profile updated",
+        description: "Your avatar has been updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error updating session:", error);
+      // Still show success since the upload and database update succeeded
+      toast({
+        title: "Upload successful",
+        description: "Avatar uploaded and saved. Refreshing...",
+        variant: "default",
+      });
+      router.refresh();
+    }
   };
 
   const handleAvatarRemove = () => {
