@@ -58,6 +58,7 @@ export function AvatarUpload({
       setIsUploading(true);
 
       try {
+        // Show preview immediately
         const reader = new FileReader();
         reader.onloadend = () => {
           const result = reader.result as string;
@@ -65,24 +66,43 @@ export function AvatarUpload({
         };
         reader.readAsDataURL(file);
 
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
+        // Upload file to server
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/user/upload-avatar", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
         });
 
-        onAvatarChange(base64);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.error || "Failed to upload image";
+          const errorDetails = errorData.details ? `\n\nDetails: ${errorData.details}` : "";
+          const errorHelp = errorData.help ? `\n\n${errorData.help}` : "";
+          throw new Error(`${errorMessage}${errorDetails}${errorHelp}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.avatarUrl) {
+          throw new Error("Upload succeeded but no avatar URL was returned.");
+        }
+        
+        // Update with the server URL
+        onAvatarChange(data.avatarUrl);
         
         toast({
           title: "Profile picture updated",
-          description: "Your profile picture has been updated successfully.",
+          description: "Your profile picture has been uploaded successfully.",
         });
       } catch (error) {
-        console.error("Error processing image:", error);
+        console.error("Error uploading image:", error);
+        setPreview(null); // Clear preview on error
         toast({
           title: "Error",
-          description: "Failed to process image. Please try again.",
+          description: error instanceof Error ? error.message : "Failed to upload image. Please try again.",
           variant: "destructive",
         });
       } finally {
