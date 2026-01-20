@@ -38,6 +38,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "./db";
 import { users, accounts, sessions, verificationTokens } from "./db/schema";
+import { eq } from "drizzle-orm";
 import { compare } from "bcryptjs";
 import { env } from "./env";
 import {
@@ -204,6 +205,29 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+        
+        // Fetch latest user data from database to get updated avatar
+        try {
+          const dbUser = await db.query.users.findFirst({
+            where: eq(users.id, token.id as string),
+            columns: {
+              name: true,
+              email: true,
+              image: true,
+              avatar_url: true,
+            },
+          });
+          
+          if (dbUser) {
+            // Use avatar_url if available, otherwise fall back to image
+            session.user.name = dbUser.name;
+            session.user.email = dbUser.email;
+            session.user.image = dbUser.avatar_url || dbUser.image || null;
+          }
+        } catch (error) {
+          console.error("Error fetching user data in session callback:", error);
+          // Continue with existing session data if fetch fails
+        }
       }
       return session;
     },
