@@ -211,33 +211,51 @@ export default function TodoList() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Use enhanced stats with overdue count */}
       <TodoStats stats={enhancedStats} />
 
-      {/* Enhanced Filter and Actions Section */}
-      <div className="flex flex-col gap-4">
+      {/* Enhanced Filter and Actions Section - Mobile First */}
+      <div className="flex flex-col gap-3 sm:gap-4">
         <TodoFilter onFilterChange={setFilter} currentFilter={filter} />
         
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 rounded-lg border bg-card/50 backdrop-blur-sm">
-          <div className="flex flex-wrap gap-2">
+        {/* Actions Bar - Mobile Optimized */}
+        <div className="flex flex-col gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border bg-card/50 backdrop-blur-sm">
+          {/* Primary Action - Add Task Button (Mobile First) */}
+          <Button 
+            onClick={() => setShowAddForm(!showAddForm)} 
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-spring hover:scale-[1.02] active:scale-[0.98] order-1 sm:order-2"
+            size="lg"
+          >
+            <PlusCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="font-semibold text-sm sm:text-base">
+              {showAddForm ? "Cancel" : "Add New Task"}
+            </span>
+          </Button>
+
+          {/* Secondary Actions - Sort and Clear */}
+          <div className="flex flex-wrap gap-2 order-2 sm:order-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="hover:bg-accent transition-colors">
-                  <SortAsc className="h-4 w-4 mr-2" />
-                  Sort
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="hover:bg-accent transition-colors flex-1 sm:flex-initial text-xs sm:text-sm"
+                >
+                  <SortAsc className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+                  <span className="hidden xs:inline">Sort</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => sortTodos("dueDate")}>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem onClick={() => sortTodos("dueDate")} className="text-sm">
                   <Calendar className="h-4 w-4 mr-2" />
                   By Due Date
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => sortTodos("priority")}>
+                <DropdownMenuItem onClick={() => sortTodos("priority")} className="text-sm">
                   <AlertTriangle className="h-4 w-4 mr-2" />
                   By Priority
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => sortTodos("createdAt")}>
+                <DropdownMenuItem onClick={() => sortTodos("createdAt")} className="text-sm">
                   <Clock className="h-4 w-4 mr-2" />
                   By Creation Time
                 </DropdownMenuItem>
@@ -248,21 +266,12 @@ export default function TodoList() {
               variant="outline"
               size="sm"
               onClick={() => setShowClearDialog(true)}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 transition-colors"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 transition-colors flex-1 sm:flex-initial text-xs sm:text-sm"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Clear All
+              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              <span className="hidden xs:inline">Clear All</span>
             </Button>
           </div>
-
-          <Button 
-            onClick={() => setShowAddForm(!showAddForm)} 
-            className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-spring hover:scale-105"
-            size="lg"
-          >
-            <PlusCircle className="h-4 w-4" />
-            {showAddForm ? "Cancel" : "Add New Task"}
-          </Button>
         </div>
       </div>
 
@@ -352,8 +361,9 @@ export default function TodoList() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="text-xs text-muted-foreground text-center mt-8">
-        <p>Keyboard shortcuts: Alt+N (New task), Alt+C (Clear completed)</p>
+      <div className="text-[10px] sm:text-xs text-muted-foreground text-center mt-6 sm:mt-8 px-2">
+        <p className="hidden sm:block">Keyboard shortcuts: Alt+N (New task), Alt+C (Clear completed)</p>
+        <p className="sm:hidden">Tap to interact • Swipe to manage</p>
       </div>
     </div>
   )

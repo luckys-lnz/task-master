@@ -20,10 +20,13 @@ export function UserNav() {
   if (!session?.user) return null
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
+        <Button 
+          variant="ghost" 
+          className="relative h-9 w-9 rounded-full flex-shrink-0 p-0 min-w-[2.25rem] min-h-[2.25rem] hover:scale-100 active:scale-100"
+        >
+          <Avatar className="h-9 w-9">
             <AvatarImage src={session.user.image || undefined} alt={session.user.name || "User"} />
             <AvatarFallback>
               {session.user.name?.charAt(0).toUpperCase() || "U"}
@@ -31,7 +34,11 @@ export function UserNav() {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent 
+        className="w-56 z-[100]" 
+        align="end" 
+        sideOffset={8}
+      >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{session.user.name}</p>

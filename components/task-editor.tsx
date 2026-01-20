@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { DateTimePickerV2 } from "@/components/ui/date-time-picker-v2"
 import { Plus, X, Paperclip } from "lucide-react"
 import type { Task } from "@/lib/types"
 import { TagInput } from "@/components/tag-input"
@@ -202,7 +202,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
           </div>
 
           <div className="space-y-2">
-            <DateTimePicker
+            <DateTimePickerV2
               date={dueDate}
               time={dueTime}
               onDateChange={(date) => {
@@ -240,6 +240,7 @@ export function TaskEditor({ task, onSave, onCancel, isLoading }: TaskEditorProp
               }}
               label="Due Date & Time"
               disabled={isLocked}
+              placeholder="Select date and time"
             />
             {(errors.dueDate || errors.dueTime) && (
               <p className="text-sm text-destructive flex items-center gap-1">

@@ -181,10 +181,10 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
           transitionTimingFunction: "var(--spring-ease-out)",
         }}
       >
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex items-center h-5 mt-1">
-            <GripVertical className="h-4 w-4 text-muted-foreground mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-start gap-2 sm:gap-3">
+          <div className="flex items-center h-5 mt-0.5 sm:mt-1 flex-shrink-0">
+            <GripVertical className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground mr-1 sm:mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             <Checkbox
               checked={todo.status === "COMPLETED"}
               onCheckedChange={(checked) => {
@@ -199,63 +199,89 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex-1">
-                <label
-                  htmlFor={`todo-${todo.id}`}
-                  className={`text-lg font-medium ${todo.status === "COMPLETED" ? "line-through text-muted-foreground" : ""} ${isExpired ? "text-red-600 dark:text-red-400" : ""}`}
-                >
-                  {todo.title}
-                </label>
-                {todo.description && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{todo.description}</p>
-                )}
-
-                {/* DUE DATE & TIME DISPLAY - ALWAYS VISIBLE */}
-                <div className="flex items-center text-sm mt-2 text-muted-foreground">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  {todo.dueDate ? (
-                    <span>
-                      Due: {format(new Date(todo.dueDate), "MMM d, yyyy")}
-                      {todo.dueTime && <> at {todo.dueTime}</>}
-                    </span>
-                  ) : (
-                    <span>No due date</span>
+            <div className="flex flex-col gap-2 sm:gap-3">
+              {/* Title and Badges Row */}
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <label
+                    htmlFor={`todo-${todo.id}`}
+                    className={cn(
+                      "text-base sm:text-lg font-semibold sm:font-medium block leading-tight",
+                      todo.status === "COMPLETED" && "line-through text-muted-foreground",
+                      isExpired && "text-red-600 dark:text-red-400"
+                    )}
+                  >
+                    {todo.title}
+                  </label>
+                  {todo.description && (
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-1 line-clamp-2 leading-relaxed">
+                      {todo.description}
+                    </p>
+                  )}
+                </div>
+                {/* Badges - Mobile Optimized */}
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                  {todo.category && (
+                    <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                      {todo.category}
+                    </Badge>
+                  )}
+                  {todo.priority && (
+                    <Badge className={cn(
+                      priorityColors[todo.priority as keyof typeof priorityColors],
+                      "text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5"
+                    )}>
+                      {todo.priority}
+                    </Badge>
+                  )}
+                  {todo.tags &&
+                    todo.tags.slice(0, 2).map((tag: string) => (
+                      <Badge key={tag} variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                        {tag}
+                      </Badge>
+                    ))}
+                  {todo.tags && todo.tags.length > 2 && (
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
+                      +{todo.tags.length - 2}
+                    </Badge>
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
-                {todo.category && <Badge variant="outline">{todo.category}</Badge>}
-                {todo.priority && (
-                  <Badge className={priorityColors[todo.priority as keyof typeof priorityColors]}>
-                    {todo.priority}
-                  </Badge>
+
+              {/* DUE DATE & TIME DISPLAY - Mobile Optimized */}
+              <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                {todo.dueDate ? (
+                  <span className="truncate">
+                    Due: {format(new Date(todo.dueDate), "MMM d, yyyy")}
+                    {todo.dueTime && <span className="hidden sm:inline"> at {todo.dueTime}</span>}
+                  </span>
+                ) : (
+                  <span>No due date</span>
                 )}
-                {todo.tags &&
-                  todo.tags.map((tag: string) => (
-                    <Badge key={tag} variant="secondary">
-                      {tag}
-                    </Badge>
-                  ))}
               </div>
             </div>
 
-            {/* Subtasks Section */}
+            {/* Subtasks Section - Mobile Optimized */}
             {(todo.subtasks?.length ?? 0) > 0 && (
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <Collapsible open={isOpen} onOpenChange={setIsOpen}>
                   <div className="flex items-center justify-between">
                     <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <span className="mr-1">
+                      <Button variant="ghost" size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
+                        <span className="mr-1.5 sm:mr-2 font-medium">
                           {(todo.subtasks ?? []).filter((st) => st.completed).length}/{(todo.subtasks ?? []).length}
                         </span>
-                        {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        {isOpen ? (
+                          <ChevronUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        )}
                       </Button>
                     </CollapsibleTrigger>
                   </div>
-                  <CollapsibleContent className="mt-4">
-                    <div className="flex gap-2 mb-4">
+                  <CollapsibleContent className="mt-3 sm:mt-4">
+                    <div className="flex gap-2 mb-3 sm:mb-4">
                       <Input
                         placeholder="Add a subtask"
                         value={newSubtaskTitle}
@@ -271,6 +297,7 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
                             setNewSubtaskTitle("")
                           }
                         }}
+                        className="text-xs sm:text-sm h-8 sm:h-9"
                       />
                       <Button
                         size="sm"
@@ -283,8 +310,9 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
                           })
                           setNewSubtaskTitle("")
                         }}
+                        className="h-8 sm:h-9 w-8 sm:w-9 p-0"
                       >
-                        <Plus size={16} />
+                        <Plus size={14} className="sm:h-4 sm:w-4" />
                       </Button>
                     </div>
 
@@ -301,24 +329,27 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="px-4 py-2 flex justify-end gap-2 bg-muted/50">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => setIsEditing(true)}
-          className="hover-scale transition-smooth hover:bg-accent"
-        >
-          <Edit className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
-          Edit
-        </Button>
+      <CardFooter className="px-3 sm:px-4 py-2 flex justify-end gap-2 bg-muted/50">
+        {/* Only show edit button if task is not overdue */}
+        {!isExpired && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setIsEditing(true)}
+            className="hover-scale transition-smooth hover:bg-accent text-xs sm:text-sm"
+          >
+            <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
+            <span className="hidden sm:inline">Edit</span>
+          </Button>
+        )}
         <Button 
           variant="ghost" 
           size="sm" 
           onClick={() => onDelete(todo.id)}
-          className="hover-scale transition-smooth hover:bg-destructive/10 hover:text-destructive shake-on-hover"
+          className="hover-scale transition-smooth hover:bg-destructive/10 hover:text-destructive shake-on-hover text-xs sm:text-sm"
         >
-          <Trash2 className="h-4 w-4 mr-1 transition-transform duration-200 hover:scale-110" />
-          Delete
+          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 transition-transform duration-200 hover:scale-110" />
+          <span className="hidden sm:inline">Delete</span>
         </Button>
       </CardFooter>
     </Card>

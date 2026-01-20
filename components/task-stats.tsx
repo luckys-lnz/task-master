@@ -106,8 +106,9 @@ export function TodoStats({ stats }: TodoStatsProps) {
   const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="space-y-3 sm:space-y-4">
+      {/* Mobile-first grid: 2 cols on mobile, 3 on tablet, 5 on desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
         {statConfig.map((config, index) => {
           const Icon = config.icon
           const value = animatedStats[config.key]
@@ -126,23 +127,23 @@ export function TodoStats({ stats }: TodoStatsProps) {
               }}
             >
               <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-300", config.bgGradient)} />
-              <CardContent className="p-5 relative z-10">
-                <div className="flex items-start justify-between mb-3">
-                  <div className={cn("h-10 w-10 rounded-lg bg-gradient-to-br flex items-center justify-center group-hover:scale-110 transition-transform duration-300", config.bgGradient)}>
-                    <Icon className={cn("h-5 w-5", config.iconColor)} />
+              <CardContent className="p-3 sm:p-4 md:p-5 relative z-10">
+                <div className="flex items-start justify-between mb-2 sm:mb-3">
+                  <div className={cn("h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br flex items-center justify-center group-hover:scale-110 transition-transform duration-300", config.bgGradient)}>
+                    <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", config.iconColor)} />
                   </div>
                   {config.key === "completed" && completionRate > 0 && (
-                    <div className="flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400">
-                      <TrendingUp className="h-3 w-3" />
+                    <div className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold text-green-600 dark:text-green-400">
+                      <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                       <span>{completionRate}%</span>
                     </div>
                   )}
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <div className="space-y-0.5 sm:space-y-1">
+                  <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide leading-tight">
                     {config.label}
                   </p>
-                  <p className="text-3xl font-bold tabular-nums transition-all duration-300">
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold tabular-nums transition-all duration-300 leading-none">
                     {value}
                   </p>
                 </div>
@@ -152,15 +153,15 @@ export function TodoStats({ stats }: TodoStatsProps) {
         })}
       </div>
 
-      {/* Progress Bar */}
+      {/* Progress Bar - Mobile Optimized */}
       {stats.total > 0 && (
         <Card className="border-2 border-primary/20">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Overall Progress</span>
-              <span className="text-sm font-bold text-primary">{completionRate}%</span>
+              <span className="text-xs sm:text-sm font-semibold">Overall Progress</span>
+              <span className="text-xs sm:text-sm font-bold text-primary tabular-nums">{completionRate}%</span>
             </div>
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+            <div className="h-2 sm:h-2.5 w-full bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-1000 ease-out"
                 style={{ width: `${completionRate}%` }}
