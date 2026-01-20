@@ -6,6 +6,41 @@ import { eq } from "drizzle-orm";
 import * as z from "zod";
 import { handleApiError } from "@/lib/errors";
 
+// GET /api/user/profile - Get current user's profile
+export async function GET() {
+  try {
+    const session = await getValidatedSession();
+
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, session.user.id),
+      columns: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        avatar_url: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      ...user,
+      // Return avatar_url if available, otherwise fall back to image
+      avatar_url: user.avatar_url || user.image || null,
+      image: user.avatar_url || user.image || null,
+    });
+  } catch (error) {
+    console.error("Profile fetch error:", error);
+    return handleApiError(error);
+  }
+}
+
 const profileSchema = z.object({
   name: z.string().min(3, "Display name must be at least 3 characters").max(100, "Name must be less than 100 characters"),
   avatarUrl: z.preprocess(
@@ -22,7 +57,7 @@ const profileSchema = z.object({
       return val;
     },
     z.string().optional().refine(
-      (val) => !val || val.startsWith("data:image/") || val.startsWith("http://") || val.startsWith("https://"),
+      (val) => !val || val.startsWith("data:image/") || val.startsWith("http://") || val.startsWith("https://") || val.startsWith("/uploads/") || val.includes("supabase.co"),
       { message: "Please enter a valid image URL or data URL" }
     )
   ),

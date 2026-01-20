@@ -9,7 +9,7 @@ export default async function SettingsPage() {
   try {
     const session = await getValidatedSession();
 
-    // Fetch user preferences
+    // Fetch user data from database (including avatar_url)
     const user = await db.query.users.findFirst({
       where: eq(users.id, session.user.id),
     });
@@ -26,10 +26,16 @@ export default async function SettingsPage() {
           theme: "system" as const,
         };
 
+    // Create user object with avatar from database (prefer avatar_url over image)
+    const userWithAvatar = {
+      ...session.user,
+      image: user?.avatar_url || user?.image || session.user.image || null,
+    };
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 pt-24 pb-8">
       <SettingsClient
-        user={session.user}
+        user={userWithAvatar}
         preferences={preferences}
       />
     </div>

@@ -42,16 +42,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <LoadingScreen />
           <AuthSessionProvider>
-            <header className="fixed top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-background/95 dark:supports-[backdrop-filter]:bg-background/60 shadow-sm">
+            <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-background/95 dark:supports-[backdrop-filter]:bg-background/60 shadow-sm">
               <div className="container flex h-16 items-center justify-between px-4">
-                <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                  <CheckSquare className="h-6 w-6 text-primary" />
+                <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0">
+                  <CheckSquare className="h-6 w-6 text-primary flex-shrink-0" />
                   <span className="font-semibold text-foreground">Task Master</span>
                 </Link>
-                <div className="flex items-center gap-4">
+                <nav className="flex items-center gap-3 flex-shrink-0" aria-label="User menu">
                   <ThemeSwitcher />
                   <UserNav />
-                </div>
+                </nav>
               </div>
             </header>
             <main className="w-full overflow-visible">
