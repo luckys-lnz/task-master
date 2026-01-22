@@ -14,6 +14,10 @@ export interface Task {
   completedAt?: string;
   overdueAt?: string;
   lockedAfterDue: boolean;
+  notificationsMuted?: boolean;
+  snoozedUntil?: string;
+  partiallyResolved?: boolean;
+  duplicatedFromTaskId?: string;
   notes: string;
   subtasks?: {
     id: string;
