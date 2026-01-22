@@ -15,6 +15,9 @@ const taskSchema = z.object({
   tags: z.array(z.string()).optional(),
   due_date: z.string().optional(),
   due_time: z.string().optional(),
+  start_time: z.string().min(1, "Start time is required"),
+  end_time: z.string().min(1, "End time is required"),
+  notify_on_start: z.boolean().optional().default(true),
   category: z.string().optional(),
   notes: z.string().optional(),
   attachments: z.array(z.string()).optional(),
@@ -61,6 +64,9 @@ export async function POST(req: Request) {
       ...json,
       due_date: json.due_date || json.dueDate,
       due_time: json.due_time || json.dueTime,
+      start_time: json.start_time || json.startTime,
+      end_time: json.end_time || json.endTime,
+      notify_on_start: json.notify_on_start !== undefined ? json.notify_on_start : (json.notifyOnStart !== undefined ? json.notifyOnStart : true),
       duplicated_from_task_id: json.duplicated_from_task_id || json.duplicatedFromTaskId,
     });
 
@@ -89,6 +95,24 @@ export async function POST(req: Request) {
       }
     }
 
+    // Auto-set due_date and due_time from end_time (end_time is required)
+    const endDateTime = new Date(body.end_time)
+    const dueDate = new Date(endDateTime.getFullYear(), endDateTime.getMonth(), endDateTime.getDate())
+    const dueTime = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
+
+    // Re-check overdue status using end_time as due time
+    if (endDateTime) {
+      const taskToCheck = {
+        due_date: dueDate,
+        due_time: dueTime,
+        status: "PENDING" as const,
+      };
+      if (isTaskOverdue(taskToCheck)) {
+        initialStatus = "OVERDUE";
+        overdueAt = new Date();
+      }
+    }
+
     // Insert new task
     const insertedTasks = await db.insert(tasks).values({
       user_id: session.user.id,
@@ -96,8 +120,11 @@ export async function POST(req: Request) {
       description: body.description || "",
       priority: body.priority,
       tags: body.tags || [],
-      due_date: body.due_date ? new Date(body.due_date) : null,
-      due_time: body.due_time || null,
+      due_date: dueDate,
+      due_time: dueTime,
+      start_time: new Date(body.start_time),
+      end_time: endDateTime,
+      notify_on_start: body.notify_on_start ?? true,
       category: body.category || null,
       notes: body.notes || null,
       attachments: body.attachments || [],

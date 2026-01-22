@@ -99,7 +99,7 @@ export function OnboardingGreeting({
             damping: 30,
             duration: 0.5
           }}
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4"
+          className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-3 sm:px-4"
         >
           <Card className="relative overflow-hidden border-2 border-accent/20 bg-gradient-to-br from-background via-background to-accent/5 shadow-xl">
             {/* Decorative gradient overlay */}
@@ -129,7 +129,7 @@ export function OnboardingGreeting({
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="text-2xl sm:text-3xl font-bold text-foreground mb-2"
+                    className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-2 leading-tight"
                   >
                     {greeting}
                   </motion.h2>
@@ -194,7 +194,7 @@ export function OnboardingGreeting({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: isNewUser ? 0.9 : 0.4 }}
-                className="mt-6 flex items-center gap-3"
+                className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3"
               >
                 <Button
                   onClick={handleDismiss}
@@ -206,7 +206,7 @@ export function OnboardingGreeting({
                 <Button
                   variant="ghost"
                   onClick={handleDismiss}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground w-full sm:w-auto"
                 >
                   Dismiss
                 </Button>
