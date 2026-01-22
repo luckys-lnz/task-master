@@ -13,8 +13,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DateTimePickerV2 } from "@/components/ui/date-time-picker-v2"
-import { X, Plus } from "lucide-react"
+import { DateTimeRangePicker } from "@/components/ui/date-time-range-picker"
+import { Switch } from "@/components/ui/switch"
+import { X, Plus, Bell } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import type { Task, Subtask } from "@/lib/types"
 
@@ -35,10 +36,13 @@ export function AddTaskModal({ open, onOpenChange, onAdd, initialData }: AddTask
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState<Task["priority"]>("MEDIUM")
-  const [dueDate, setDueDate] = useState<Date | undefined>()
-  const [dueTime, setDueTime] = useState("")
+  const [startDate, setStartDate] = useState<Date | undefined>()
+  const [startTime, setStartTime] = useState("")
+  const [endDate, setEndDate] = useState<Date | undefined>()
+  const [endTime, setEndTime] = useState("")
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("")
+  const [notifyOnStart, setNotifyOnStart] = useState(true)
 
   // Initialize form with initial data when modal opens or initialData changes
   useEffect(() => {
@@ -58,8 +62,11 @@ export function AddTaskModal({ open, onOpenChange, onAdd, initialData }: AddTask
       setTitle("")
       setDescription("")
       setPriority("MEDIUM")
-      setDueDate(undefined)
-      setDueTime("")
+      setStartDate(undefined)
+      setStartTime("")
+      setEndDate(undefined)
+      setEndTime("")
+      setNotifyOnStart(true)
       setSubtasks([])
       setNewSubtaskTitle("")
     }
@@ -84,14 +91,37 @@ export function AddTaskModal({ open, onOpenChange, onAdd, initialData }: AddTask
 
   const handleSubmit = () => {
     if (!title.trim()) return
+    if (!startDate || !startTime) {
+      // Show error - start time is required
+      return
+    }
+    if (!endDate || !endTime) {
+      // Show error - end time is required
+      return
+    }
+
+    // Calculate start and end times
+    const startDateTime = new Date(startDate)
+    const [sh, sm] = startTime.split(":").map(Number)
+    startDateTime.setHours(sh, sm, 0, 0)
+    
+    const endDateTime = new Date(endDate)
+    const [eh, em] = endTime.split(":").map(Number)
+    endDateTime.setHours(eh, em, 0, 0)
+    
+    // Due date = end time
+    const dueDateTime = new Date(endDateTime)
 
     const task: Partial<Task> = {
       title,
       description: description || "",
       priority,
       status: "PENDING",
-      dueDate: dueDate?.toISOString(),
-      dueTime: dueTime || undefined,
+      dueDate: dueDateTime.toISOString(),
+      dueTime: endTime,
+      startTime: startDateTime.toISOString(),
+      endTime: endDateTime.toISOString(),
+      notifyOnStart: notifyOnStart,
       subtasks: subtasks.length > 0 ? subtasks.map(st => ({ ...st, task_id: "" })) : undefined,
       category: "",
       tags: [],
@@ -107,8 +137,11 @@ export function AddTaskModal({ open, onOpenChange, onAdd, initialData }: AddTask
     setTitle("")
     setDescription("")
     setPriority("MEDIUM")
-    setDueDate(undefined)
-    setDueTime("")
+    setStartDate(undefined)
+    setStartTime("")
+    setEndDate(undefined)
+    setEndTime("")
+    setNotifyOnStart(true)
     setSubtasks([])
     setNewSubtaskTitle("")
     onOpenChange(false)
@@ -123,8 +156,8 @@ export function AddTaskModal({ open, onOpenChange, onAdd, initialData }: AddTask
           </DialogTitle>
           <DialogDescription>
             {initialData 
-              ? "Create a copy of this task with uncompleted subtasks. You can set a new due date and time."
-              : "Create a new task with details below. Add subtasks, set priority, and schedule it."}
+              ? "Create a copy of this task with uncompleted subtasks. Set start and end time to schedule it."
+              : "Create a new task with details below. Set start and end time (required) - due date will be set automatically."}
           </DialogDescription>
         </DialogHeader>
 
@@ -157,35 +190,69 @@ export function AddTaskModal({ open, onOpenChange, onAdd, initialData }: AddTask
             />
           </div>
 
-          {/* Priority and Due Date Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="priority" className="text-sm font-semibold">
-                Priority
-              </Label>
-              <Select value={priority} onValueChange={(value: Task["priority"]) => setPriority(value)}>
-                <SelectTrigger id="priority" className="h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                  <SelectItem value="URGENT">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Priority */}
+          <div className="space-y-2">
+            <Label htmlFor="priority" className="text-sm font-semibold">
+              Priority
+            </Label>
+            <Select value={priority} onValueChange={(value: Task["priority"]) => setPriority(value)}>
+              <SelectTrigger id="priority" className="h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="LOW">Low</SelectItem>
+                <SelectItem value="MEDIUM">Medium</SelectItem>
+                <SelectItem value="HIGH">High</SelectItem>
+                <SelectItem value="URGENT">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Due Date</Label>
-              <DateTimePickerV2
-                date={dueDate}
-                time={dueTime}
-                onDateChange={setDueDate}
-                onTimeChange={setDueTime}
-                placeholder="Select date and time"
-              />
+          {/* Start and End Time - Required */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">
+              Task Duration <span className="text-red-500">*</span>
+            </Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Due date will be automatically set to the end time
+            </p>
+            <DateTimeRangePicker
+              startDate={startDate}
+              startTime={startTime}
+              endDate={endDate}
+              endTime={endTime}
+              onStartDateChange={setStartDate}
+              onStartTimeChange={setStartTime}
+              onEndDateChange={setEndDate}
+              onEndTimeChange={setEndTime}
+              placeholder="Select start and end time"
+            />
+            {(!startDate || !startTime || !endDate || !endTime) && (
+              <p className="text-xs text-red-500 mt-1">
+                Start and end time are required
+              </p>
+            )}
+          </div>
+
+          {/* Start Notification Toggle */}
+          <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg border border-border bg-muted/30">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1">
+              <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <Label htmlFor="notify-on-start" className="text-xs sm:text-sm font-semibold cursor-pointer">
+                  Notify when task starts
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Get notified 5 minutes before task start time
+                </p>
+              </div>
             </div>
+            <Switch
+              id="notify-on-start"
+              checked={notifyOnStart}
+              onCheckedChange={setNotifyOnStart}
+              className="flex-shrink-0"
+            />
           </div>
 
           {/* Subtasks */}
@@ -242,7 +309,7 @@ export function AddTaskModal({ open, onOpenChange, onAdd, initialData }: AddTask
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!title.trim()}
+            disabled={!title.trim() || !startDate || !startTime || !endDate || !endTime}
             className="h-11 bg-accent hover:bg-accent/90 text-accent-foreground"
           >
             Add Task
