@@ -36,7 +36,6 @@ export async function GET() {
       image: user.avatar_url || user.image || null,
     });
   } catch (error) {
-    console.error("Profile fetch error:", error);
     return handleApiError(error);
   }
 }
@@ -76,7 +75,6 @@ export async function PATCH(req: Request) {
       console.log("Received request body text:", text);
       
       if (!text || text.trim().length === 0) {
-        console.error("Empty request body");
         return NextResponse.json(
           {
             error: "Request body is required",
@@ -88,7 +86,6 @@ export async function PATCH(req: Request) {
       json = JSON.parse(text);
       console.log("Parsed JSON:", json);
     } catch (parseError) {
-      console.error("Failed to parse request body:", parseError);
       return NextResponse.json(
         {
           error: "Invalid request body. Expected valid JSON.",
@@ -166,7 +163,6 @@ export async function PATCH(req: Request) {
       message: "Profile updated successfully"
     });
   } catch (error) {
-    console.error("Profile update error:", error);
     return handleApiError(error);
   }
 } 

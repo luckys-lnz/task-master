@@ -37,7 +37,6 @@ export async function GET() {
       updatedTasks: updatedTasks.map(t => ({ id: t.id, title: t.title })),
     });
   } catch (error) {
-    console.error("Error updating overdue tasks:", error);
     return NextResponse.json(
       { error: "Failed to update overdue tasks" },
       { status: 500 }

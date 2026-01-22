@@ -18,6 +18,12 @@ const updateTaskSchema = z.object({
   dueTime: z.string(),
   notes: z.string(),
   locked_after_due: z.boolean().optional(),
+  notificationsMuted: z.boolean().optional(),
+  notifications_muted: z.boolean().optional(),
+  snoozedUntil: z.string().optional(),
+  snoozed_until: z.string().optional(),
+  partiallyResolved: z.boolean().optional(),
+  partially_resolved: z.boolean().optional(),
   subtasks: z.array(z.object({
     id: z.string(),
     title: z.string(),
@@ -65,11 +71,23 @@ export async function PATCH(
     // Check if task is locked (overdue and locked_after_due is true)
     // Allow status change to COMPLETED even if locked
     const isCompleting = body.status === "COMPLETED" && currentTask.status !== "COMPLETED";
-    const isLocked = isTaskLocked(currentTask);
+    const isLocked = isTaskLocked({
+      status: currentTask.status,
+      locked_after_due: currentTask.locked_after_due ?? true
+    });
     
     // If locked and not completing, block ALL edits except status change to COMPLETED
+    // Also allow notification controls (mute/snooze) even for locked tasks
     if (isLocked && !isCompleting) {
-      // Check if trying to edit any fields other than status
+      // Check if trying to edit any fields other than status or notification controls
+      const notificationControls = 
+        body.notificationsMuted !== undefined ||
+        body.notifications_muted !== undefined ||
+        body.snoozedUntil !== undefined ||
+        body.snoozed_until !== undefined ||
+        body.partiallyResolved !== undefined ||
+        body.partially_resolved !== undefined;
+      
       const hasEdits = 
         body.title !== undefined ||
         body.description !== undefined ||
@@ -82,7 +100,8 @@ export async function PATCH(
         body.subtasks !== undefined ||
         body.locked_after_due !== undefined;
       
-      if (hasEdits) {
+      // Block edits but allow notification controls
+      if (hasEdits && !notificationControls) {
         return NextResponse.json(
           { 
             error: "This task is locked because it is overdue. Complete or duplicate it instead.",
@@ -98,14 +117,70 @@ export async function PATCH(
     // Prepare update data
     const now = new Date();
     const updateData: any = {
-      ...validatedData,
       updated_at: now,
     };
+
+    // Map camelCase fields to snake_case for database
+    if (validatedData.title !== undefined) {
+      updateData.title = validatedData.title;
+    }
+    if (validatedData.description !== undefined) {
+      updateData.description = validatedData.description;
+    }
+    if (validatedData.category !== undefined) {
+      updateData.category = validatedData.category;
+    }
+    if (validatedData.priority !== undefined) {
+      updateData.priority = validatedData.priority;
+    }
+    if (validatedData.tags !== undefined) {
+      updateData.tags = validatedData.tags;
+    }
+    if (validatedData.notes !== undefined) {
+      updateData.notes = validatedData.notes;
+    }
+    if (validatedData.locked_after_due !== undefined) {
+      updateData.locked_after_due = validatedData.locked_after_due;
+    }
+    if (validatedData.dueDate !== undefined) {
+      updateData.due_date = validatedData.dueDate ? new Date(validatedData.dueDate) : null;
+    }
+    if (validatedData.dueTime !== undefined) {
+      updateData.due_time = validatedData.dueTime || null;
+    }
+
+    // Map camelCase to snake_case for new notification fields
+    if (validatedData.notificationsMuted !== undefined) {
+      updateData.notifications_muted = validatedData.notificationsMuted;
+      delete updateData.notificationsMuted;
+    }
+    if (validatedData.notifications_muted !== undefined) {
+      updateData.notifications_muted = validatedData.notifications_muted;
+    }
+    // Handle snoozedUntil - check both camelCase and snake_case, and handle null/undefined explicitly
+    if (validatedData.snoozedUntil !== undefined || body.snoozedUntil !== undefined) {
+      const snoozeValue = validatedData.snoozedUntil !== undefined ? validatedData.snoozedUntil : body.snoozedUntil;
+      updateData.snoozed_until = snoozeValue ? new Date(snoozeValue) : null;
+      delete updateData.snoozedUntil;
+    }
+    if (validatedData.snoozed_until !== undefined || body.snoozed_until !== undefined) {
+      const snoozeValue = validatedData.snoozed_until !== undefined ? validatedData.snoozed_until : body.snoozed_until;
+      updateData.snoozed_until = snoozeValue ? new Date(snoozeValue) : null;
+    }
+    if (validatedData.partiallyResolved !== undefined) {
+      updateData.partially_resolved = validatedData.partiallyResolved;
+      delete updateData.partiallyResolved;
+    }
+    if (validatedData.partially_resolved !== undefined) {
+      updateData.partially_resolved = validatedData.partially_resolved;
+    }
 
     // Handle status transitions according to specification
     if (validatedData.status !== undefined) {
       const newStatus = validatedData.status;
       const oldStatus = currentTask.status;
+      
+      updateData.status = newStatus;
 
       // PENDING → COMPLETED: set completed_at, clear overdue_at
       if (oldStatus === "PENDING" && newStatus === "COMPLETED") {
@@ -154,10 +229,16 @@ export async function PATCH(
       }
     }
     
-    // Block editing other fields when locked (except status change to COMPLETED)
+    // Block editing other fields when locked (except status change to COMPLETED and notification controls)
     if (isLocked && !isCompleting) {
-      // Remove all fields except status from updateData
-      const allowedFields = ['status', 'updated_at'];
+      // Remove all fields except status and notification controls from updateData
+      const allowedFields = [
+        'status', 
+        'updated_at',
+        'notifications_muted',
+        'snoozed_until',
+        'partially_resolved'
+      ];
       Object.keys(updateData).forEach(key => {
         if (!allowedFields.includes(key)) {
           delete updateData[key];
@@ -165,16 +246,22 @@ export async function PATCH(
       });
     }
 
-    await db
-      .update(tasks)
-      .set(updateData)
-      .where(and(eq(tasks.id, params.id), eq(tasks.user_id, userId)))
-      .returning();
+    // Only update if there are fields to update (besides updated_at)
+    const fieldsToUpdate = Object.keys(updateData).filter(key => key !== 'updated_at');
+    if (fieldsToUpdate.length > 0) {
+      await db
+        .update(tasks)
+        .set(updateData)
+        .where(and(eq(tasks.id, params.id), eq(tasks.user_id, userId)));
+    }
 
     // Handle subtasks update if present
     if (validatedData.subtasks !== undefined) {
       // Check if parent task is locked (only if not completing)
-      if (isTaskLocked(currentTask) && !isCompleting) {
+      if (isTaskLocked({
+        status: currentTask.status,
+        locked_after_due: currentTask.locked_after_due ?? true
+      }) && !isCompleting) {
         return NextResponse.json(
           { 
             error: "Cannot update subtasks of an overdue locked task.",
@@ -202,7 +289,6 @@ export async function PATCH(
 
     return NextResponse.json(mapTaskToCamelCase(updatedTask));
   } catch (error) {
-    console.error("Task update error:", error);
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -236,7 +322,7 @@ export async function DELETE(
       .where(and(eq(tasks.id, params.id), eq(tasks.user_id, userId)))
       .returning();
 
-    if (!deleted.length) {
+    if (Array.isArray(deleted) && deleted.length === 0) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
