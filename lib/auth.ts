@@ -225,7 +225,6 @@ export const authOptions: NextAuthOptions = {
             session.user.image = dbUser.avatar_url || dbUser.image || null;
           }
         } catch (error) {
-          console.error("Error fetching user data in session callback:", error);
           // Continue with existing session data if fetch fails
         }
       }
