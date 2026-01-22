@@ -68,7 +68,6 @@ export function PreferencesForm({ initialPreferences }: PreferencesFormProps) {
 
       router.refresh();
     } catch (error) {
-      console.error("Error updating preferences:", error);
       toast({
         title: "Error",
         description: "Failed to update preferences. Please try again.",

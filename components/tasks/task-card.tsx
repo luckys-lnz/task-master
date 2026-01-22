@@ -10,7 +10,7 @@ import { AlarmClock } from "lucide-react";
 
 interface TaskCardProps {
   task: Task;
-  onUpdate: (taskId: string, data: Partial<Task>) => Promise<void>;
+  onUpdate: (taskId: string, data: Partial<Task>, successMessage?: string) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;
 }
 
@@ -41,10 +41,10 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
     setIsLoading(true);
     try {
       await onUpdate(task.id, {
-        status: checked ? "COMPLETED" : "PENDING"
-      });
+        status: checked ? "COMPLETED" : "PENDING",
+        completedAt: checked ? new Date().toISOString() : null
+      }, checked ? "Task completed successfully" : "Task reopened successfully");
     } catch (error) {
-      console.error("Error updating task status:", error);
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +55,6 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
     try {
       await onDelete(task.id);
     } catch (error) {
-      console.error("Error deleting task:", error);
     } finally {
       setIsLoading(false);
     }

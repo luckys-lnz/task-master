@@ -33,7 +33,6 @@ export function TaskList() {
       const data = await response.json();
       setTasks(data);
     } catch (error) {
-      console.error("Error fetching tasks:", error);
       toast({
         title: "Error",
         description: "Failed to load tasks. Please try again.",
@@ -65,7 +64,6 @@ export function TaskList() {
         description: "Task created successfully",
       });
     } catch (error) {
-      console.error("Error creating task:", error);
       toast({
         title: "Error",
         description: "Failed to create task. Please try again.",
@@ -94,7 +92,6 @@ export function TaskList() {
         description: "Task updated successfully",
       });
     } catch (error) {
-      console.error("Error updating task:", error);
       toast({
         title: "Error",
         description: "Failed to update task. Please try again.",
@@ -116,7 +113,6 @@ export function TaskList() {
         description: "Task deleted successfully",
       });
     } catch (error) {
-      console.error("Error deleting task:", error);
       toast({
         title: "Error",
         description: "Failed to delete task. Please try again.",

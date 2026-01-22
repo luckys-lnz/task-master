@@ -79,7 +79,6 @@ export function SignUpForm() {
       
       if (responseData.verificationUrl) {
         setVerificationUrl(responseData.verificationUrl);
-        console.log("🔗 Verification URL:", responseData.verificationUrl);
       }
       
       setSuccess(true);
@@ -172,7 +171,6 @@ export function SignUpForm() {
                             if (btn) btn.textContent = originalText;
                           }, 2000);
                         } catch (err) {
-                          console.error("Failed to copy:", err);
                         }
                       }}
                       className="text-xs h-7 text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100"
