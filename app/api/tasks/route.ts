@@ -19,6 +19,7 @@ const taskSchema = z.object({
   notes: z.string().optional(),
   attachments: z.array(z.string()).optional(),
   locked_after_due: z.boolean().optional().default(true),
+  duplicated_from_task_id: z.string().uuid().optional(),
   subtasks: z.array(z.object({
     title: z.string(),
     completed: z.boolean().optional().default(false)
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
       ...json,
       due_date: json.due_date || json.dueDate,
       due_time: json.due_time || json.dueTime,
+      duplicated_from_task_id: json.duplicated_from_task_id || json.duplicatedFromTaskId,
     });
 
     // Get the current highest position for ordering
@@ -103,6 +105,7 @@ export async function POST(req: Request) {
       status: initialStatus,
       overdue_at: overdueAt,
       locked_after_due: body.locked_after_due ?? true,
+      duplicated_from_task_id: body.duplicated_from_task_id || null,
     }).returning();
 
     // Insert subtasks if any

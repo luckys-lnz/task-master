@@ -20,7 +20,7 @@ type SubtaskWithTaskId = BaseSubtask & { task_id: string }
 
 interface TodoItemProps {
   todo: Task
-  onUpdate: (id: string, updates: Partial<Task>) => void
+  onUpdate: (id: string, updates: Partial<Task>, successMessage?: string) => void
   onDelete: (id: string) => void
 }
 
@@ -188,7 +188,10 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
             <Checkbox
               checked={todo.status === "COMPLETED"}
               onCheckedChange={(checked) => {
-                onUpdate(todo.id, { status: checked ? "COMPLETED" : "PENDING" });
+                onUpdate(todo.id, { 
+                  status: checked ? "COMPLETED" : "PENDING",
+                  completedAt: checked ? new Date().toISOString() : null
+                }, checked ? "Task completed successfully" : "Task reopened successfully");
               }}
               id={`todo-${todo.id}`}
               className={cn(

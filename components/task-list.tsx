@@ -193,7 +193,6 @@ export default function TodoList() {
       setFilteredTodos(items)
       reorderTodos(items.map((item) => item.id))
     } catch (error) {
-      console.error("Error handling drag end:", error)
       toast({
         title: "Error",
         description: "Failed to reorder tasks",
