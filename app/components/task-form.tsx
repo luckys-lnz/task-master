@@ -55,7 +55,6 @@ export function TaskForm() {
       router.refresh();
     } catch (error) {
       toast.error("Failed to create task");
-      console.error("Error creating task:", error);
     } finally {
       setIsSubmitting(false);
       // Reset form

@@ -97,7 +97,6 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
         description: "Profile picture updated successfully",
       })
     } catch (error) {
-      console.error('Error uploading image:', error)
       toast({
         title: "Error",
         description: "Failed to upload profile picture",
@@ -115,7 +114,6 @@ export function ProfileEditForm({ profile, onSave, onCancel }: ProfileEditFormPr
     try {
       await onSave(formData)
     } catch (error) {
-      console.error('Error saving profile:', error)
       toast({
         title: "Error",
         description: "Failed to update profile",

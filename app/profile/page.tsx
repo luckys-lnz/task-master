@@ -52,7 +52,6 @@ export default function ProfilePage() {
         setProfile(profileData)
         setStats(statsData)
       } catch (error) {
-        console.error('Error fetching profile:', error)
         toast({
           title: "Error",
           description: "Failed to load profile data",
@@ -89,7 +88,6 @@ export default function ProfilePage() {
         description: "Profile updated successfully",
       })
     } catch (error) {
-      console.error('Error updating profile:', error)
       toast({
         title: "Error",
         description: "Failed to update profile",
