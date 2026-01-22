@@ -16,6 +16,10 @@ export function mapTaskToCamelCase(task: any) {
     completedAt: task.completed_at,
     overdueAt: task.overdue_at,
     lockedAfterDue: task.locked_after_due ?? true,
+    notificationsMuted: task.notifications_muted ?? false,
+    snoozedUntil: task.snoozed_until,
+    partiallyResolved: task.partially_resolved ?? false,
+    duplicatedFromTaskId: task.duplicated_from_task_id,
   }
 }
 
