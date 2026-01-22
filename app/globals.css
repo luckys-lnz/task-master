@@ -917,3 +917,45 @@
   background-color: hsl(var(--popover));
   border-bottom-color: hsl(var(--border));
 }
+
+/* Responsive DatePicker Styles */
+@media (max-width: 640px) {
+  .react-datepicker {
+    font-size: 0.875rem;
+    width: 100% !important;
+    max-width: calc(100vw - 2rem);
+  }
+
+  .react-datepicker__day {
+    width: 2rem;
+    height: 2rem;
+    line-height: 2rem;
+    font-size: 0.75rem;
+    margin: 0.1rem;
+  }
+
+  .react-datepicker__day-name {
+    width: 2rem;
+    line-height: 2rem;
+    font-size: 0.7rem;
+    margin: 0.1rem;
+  }
+
+  .react-datepicker__current-month {
+    font-size: 0.8rem;
+  }
+
+  .react-datepicker__month {
+    margin: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .react-datepicker__header {
+    padding-top: 0.5rem;
+  }
+
+  .react-datepicker__navigation {
+    top: 0.75rem;
+    padding: 0.25rem;
+  }
+}

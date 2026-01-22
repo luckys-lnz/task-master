@@ -16,10 +16,14 @@ const updateTaskSchema = z.object({
   status: z.enum(["PENDING", "COMPLETED", "OVERDUE"]).optional(),
   tags: z.array(z.string()),
   dueTime: z.string(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
   notes: z.string(),
   locked_after_due: z.boolean().optional(),
   notificationsMuted: z.boolean().optional(),
   notifications_muted: z.boolean().optional(),
+  notifyOnStart: z.boolean().optional(),
+  notify_on_start: z.boolean().optional(),
   snoozedUntil: z.string().optional(),
   snoozed_until: z.string().optional(),
   partiallyResolved: z.boolean().optional(),
@@ -148,6 +152,16 @@ export async function PATCH(
     if (validatedData.dueTime !== undefined) {
       updateData.due_time = validatedData.dueTime || null;
     }
+    if (validatedData.startTime !== undefined) {
+      updateData.start_time = validatedData.startTime ? new Date(validatedData.startTime) : null;
+    }
+    if (validatedData.endTime !== undefined) {
+      const endDateTime = new Date(validatedData.endTime);
+      updateData.end_time = endDateTime;
+      // Auto-set due_date and due_time from end_time
+      updateData.due_date = new Date(endDateTime.getFullYear(), endDateTime.getMonth(), endDateTime.getDate());
+      updateData.due_time = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`;
+    }
 
     // Map camelCase to snake_case for new notification fields
     if (validatedData.notificationsMuted !== undefined) {
@@ -156,6 +170,14 @@ export async function PATCH(
     }
     if (validatedData.notifications_muted !== undefined) {
       updateData.notifications_muted = validatedData.notifications_muted;
+    }
+    // Handle notifyOnStart - check both camelCase and snake_case
+    if (validatedData.notifyOnStart !== undefined) {
+      updateData.notify_on_start = validatedData.notifyOnStart;
+      delete updateData.notifyOnStart;
+    }
+    if (validatedData.notify_on_start !== undefined) {
+      updateData.notify_on_start = validatedData.notify_on_start;
     }
     // Handle snoozedUntil - check both camelCase and snake_case, and handle null/undefined explicitly
     if (validatedData.snoozedUntil !== undefined || body.snoozedUntil !== undefined) {
