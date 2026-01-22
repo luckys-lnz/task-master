@@ -42,7 +42,7 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
     try {
       await onUpdate(task.id, {
         status: checked ? "COMPLETED" : "PENDING",
-        completedAt: checked ? new Date().toISOString() : null
+        completedAt: checked ? new Date().toISOString() : undefined
       }, checked ? "Task completed successfully" : "Task reopened successfully");
     } catch (error) {
     } finally {

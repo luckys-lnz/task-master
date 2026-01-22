@@ -188,9 +188,9 @@ export function TodoItem({ todo, onUpdate, onDelete }: TodoItemProps) {
             <Checkbox
               checked={todo.status === "COMPLETED"}
               onCheckedChange={(checked) => {
-                onUpdate(todo.id, { 
+                onUpdate(todo.id, {
                   status: checked ? "COMPLETED" : "PENDING",
-                  completedAt: checked ? new Date().toISOString() : null
+                  completedAt: checked ? new Date().toISOString() : undefined
                 }, checked ? "Task completed successfully" : "Task reopened successfully");
               }}
               id={`todo-${todo.id}`}

@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     }
 
     // Insert new task
-    const [newTask] = await db.insert(tasks).values({
+    const insertedTasks = await db.insert(tasks).values({
       user_id: session.user.id,
       title: body.title,
       description: body.description || "",
@@ -107,6 +107,13 @@ export async function POST(req: Request) {
       locked_after_due: body.locked_after_due ?? true,
       duplicated_from_task_id: body.duplicated_from_task_id || null,
     }).returning();
+    
+    // Type guard: ensure insertedTasks is an array
+    if (!Array.isArray(insertedTasks) || insertedTasks.length === 0) {
+      throw new Error("Failed to create task");
+    }
+    
+    const newTask = insertedTasks[0];
 
     // Insert subtasks if any
     if (body.subtasks?.length) {

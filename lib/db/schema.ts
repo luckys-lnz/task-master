@@ -57,7 +57,7 @@ export const tasks = pgTable('tasks', {
   notifications_muted: boolean("notifications_muted").default(false).notNull(),
   snoozed_until: timestamp("snoozed_until", { mode: "date" }),
   partially_resolved: boolean("partially_resolved").default(false).notNull(),
-  duplicated_from_task_id: uuid("duplicated_from_task_id").references(() => tasks.id, { onDelete: "set null" }),
+  duplicated_from_task_id: uuid("duplicated_from_task_id"),
   tags: text("tags").array(),
   position: text("position"),
   attachments: text("attachments").array(),

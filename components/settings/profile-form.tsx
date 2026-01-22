@@ -162,8 +162,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         try {
           errorData = await response.json();
         } catch (jsonError) {
-          // If response is not JSON, get text instead
-          const text = await response.text();
+          // If response is not JSON, throw error with status
           throw new Error(`Failed to update profile: ${response.status} ${response.statusText}`);
         }
         
