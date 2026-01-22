@@ -6,7 +6,7 @@ import { format } from "date-fns"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronDown, Calendar, Clock, Pencil, Trash2, Copy } from "lucide-react"
+import { ChevronDown, Calendar, Clock, Pencil, Trash2, Copy, BellOff, Bell, Clock3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Task } from "@/lib/types"
 import { EnhancedSubtaskList } from "@/components/enhanced-subtask-list"
@@ -14,7 +14,7 @@ import { DeleteTaskDialog } from "./delete-task-dialog"
 
 interface EnhancedTaskCardProps {
   task: Task
-  onUpdate: (id: string, updates: Partial<Task>) => void
+  onUpdate: (id: string, updates: Partial<Task>, successMessage?: string) => void
   onDelete: (id: string) => void
   onEdit?: (task: Task) => void
   onDuplicate?: (task: Task) => void
@@ -24,6 +24,7 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
   const [isExpanded, setIsExpanded] = useState(false)
   const [isOverdue, setIsOverdue] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isSnoozed, setIsSnoozed] = useState(false)
 
   // Calculate progress
   const subtasks = task.subtasks || []
@@ -37,6 +38,7 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
   useEffect(() => {
     if (!task.dueDate || task.status === "COMPLETED") {
       setIsOverdue(false)
+      setIsSnoozed(false)
       return undefined
     }
 
@@ -49,29 +51,48 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
     }
 
     const isOverdueNow = dueDate < new Date()
-    setIsOverdue(isOverdueNow)
+    // Only consider task overdue if status is actually OVERDUE (for UI purposes like disabling edit)
+    // But still check due date to auto-update status
+    setIsOverdue(task.status === "OVERDUE")
+
+    // Check if task is snoozed - update immediately when task prop changes
+    if (task.snoozedUntil) {
+      const snoozeDate = new Date(task.snoozedUntil)
+      const isCurrentlySnoozed = snoozeDate > new Date()
+      setIsSnoozed(isCurrentlySnoozed)
+    } else {
+      setIsSnoozed(false)
+    }
 
     // Automatically move overdue tasks to OVERDUE status
     // Use setTimeout to avoid updating during render
+    // Don't show toast for automatic status updates
     if (isOverdueNow && task.status !== "OVERDUE") {
       const timeoutId = setTimeout(() => {
         onUpdate(task.id, {
           status: "OVERDUE",
           overdueAt: new Date().toISOString(),
-        })
+        }, undefined) // No toast for automatic status updates
       }, 0)
       
       return () => clearTimeout(timeoutId)
     }
     
     return undefined
-  }, [task.dueDate, task.dueTime, task.status, task.id, onUpdate])
+  }, [task.dueDate, task.dueTime, task.status, task.id, task.snoozedUntil, task.notificationsMuted, onUpdate])
 
   const getStatusBadge = () => {
     if (task.status === "COMPLETED") {
       return (
         <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30 dark:bg-accent/20 dark:text-accent dark:border-accent/40 text-xs font-semibold">
           Completed
+        </Badge>
+      )
+    }
+    if (task.partiallyResolved) {
+      return (
+        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800 text-xs font-semibold">
+          Partially Resolved
         </Badge>
       )
     }
@@ -108,12 +129,15 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
     
     // If all subtasks are completed and task is not already completed, mark task as completed
     const updates: Partial<Task> = { subtasks: updatedSubtasks }
+    let message = completed ? "Subtask completed" : "Subtask reopened"
+    
     if (allCompleted && task.status !== "COMPLETED") {
       updates.status = "COMPLETED"
       updates.completedAt = new Date().toISOString()
+      message = "All subtasks completed! Task marked as complete"
     }
     
-    onUpdate(task.id, updates)
+    onUpdate(task.id, updates, message)
   }
 
   const handleSubtaskAdd = (subtask: any) => {
@@ -123,13 +147,13 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
         ...(task.subtasks || []).map(st => ({ ...st, task_id: task.id })),
         subtaskToAdd,
       ],
-    })
+    }, "Subtask added successfully")
   }
 
   const handleSubtaskDelete = (subtaskId: string) => {
     onUpdate(task.id, {
       subtasks: (task.subtasks || []).filter(subtask => subtask.id !== subtaskId),
-    })
+    }, "Subtask deleted successfully")
   }
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -155,6 +179,35 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
     }
   }
 
+  const handleToggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    // Toggle mute state
+    const newMuteState = !task.notificationsMuted
+    onUpdate(task.id, {
+      notificationsMuted: newMuteState,
+    }, newMuteState ? "Notifications muted successfully" : "Notifications unmuted successfully")
+  }
+
+  const handleSnooze = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    // For now, default to 1 day - can be enhanced with a dropdown
+    // Future: Add options for 1 hour, 1 day, 1 week
+    const snoozeUntil = new Date()
+    snoozeUntil.setHours(snoozeUntil.getHours() + 24)
+    
+    onUpdate(task.id, {
+      snoozedUntil: snoozeUntil.toISOString(),
+    }, "Notifications snoozed for 1 day")
+  }
+
+  const handleUnsnooze = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onUpdate(task.id, {
+      snoozedUntil: undefined,
+    }, "Snooze cleared - notifications will resume")
+  }
+
+
   return (
     <motion.div
       layout
@@ -173,7 +226,9 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
         className={cn(
           "rounded-xl border-2 transition-all duration-300 hover:shadow-lg relative",
           isOverdue && "border-red-400 dark:border-red-600",
-          task.status === "COMPLETED" && "opacity-75"
+          task.status === "COMPLETED" && "opacity-75",
+          (task.notificationsMuted || isSnoozed) && "opacity-90",
+          task.partiallyResolved && "border-purple-300 dark:border-purple-700"
         )}
       >
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
@@ -193,6 +248,20 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
                       )}
                     >
                       {task.title}
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {task.notificationsMuted && (
+                          <Badge variant="outline" className="text-xs px-1.5 py-0.5 bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30">
+                            <Bell className="h-3 w-3 mr-1" />
+                            Muted
+                          </Badge>
+                        )}
+                        {isSnoozed && (
+                          <Badge variant="outline" className="text-xs px-1.5 py-0.5 bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30">
+                            <Clock3 className="h-3 w-3 mr-1" />
+                            Snoozed
+                          </Badge>
+                        )}
+                      </div>
                     </h3>
                     {getStatusBadge()}
                   </div>
@@ -255,6 +324,81 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
 
             {/* Action Buttons - Bottom Right (Outside CollapsibleTrigger) */}
             <div className="flex items-center justify-end gap-2 sm:gap-2.5 pt-3 sm:pt-2 border-t border-border/50 relative z-10">
+              {/* Snooze/Mute Controls - Show for overdue tasks */}
+              {isOverdue && (
+                <>
+                  {/* Snooze/Unsnooze Button */}
+                  {isSnoozed ? (
+                    <motion.button
+                      type="button"
+                      onClick={handleUnsnooze}
+                      className={cn(
+                        "relative h-11 w-11 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center",
+                        "bg-blue-500 hover:bg-blue-600 text-white border border-blue-500",
+                        "transition-all duration-200",
+                        "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+                        "cursor-pointer group touch-manipulation shadow-sm"
+                      )}
+                      whileHover={{ scale: 1.1, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      aria-label="Clear snooze"
+                      title="Clear snooze - notifications will resume"
+                    >
+                      <Clock3 className="h-4 w-4 sm:h-4 sm:w-4" strokeWidth={2.5} />
+                      {/* Active indicator dot */}
+                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 bg-white rounded-full border border-blue-500" />
+                    </motion.button>
+                  ) : (
+                    <motion.button
+                      type="button"
+                      onClick={handleSnooze}
+                      className={cn(
+                        "relative h-11 w-11 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center",
+                        "bg-muted/50 hover:bg-blue-500/20 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400",
+                        "transition-all duration-200",
+                        "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+                        "cursor-pointer group touch-manipulation"
+                      )}
+                      whileHover={{ scale: 1.1, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      aria-label="Snooze notifications"
+                      title="Snooze notifications for 1 day"
+                    >
+                      <Clock3 className="h-4 w-4 sm:h-4 sm:w-4" strokeWidth={2.5} />
+                    </motion.button>
+                  )}
+
+                  {/* Mute/Unmute Button */}
+                  <motion.button
+                    type="button"
+                    onClick={handleToggleMute}
+                    className={cn(
+                      "relative h-11 w-11 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center",
+                      task.notificationsMuted
+                        ? "bg-orange-500 hover:bg-orange-600 text-white border border-orange-500 shadow-sm"
+                        : "bg-muted/50 hover:bg-orange-500/20 text-muted-foreground hover:text-orange-600 dark:hover:text-orange-400",
+                      "transition-all duration-200",
+                      "focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2",
+                      "cursor-pointer group touch-manipulation"
+                    )}
+                    whileHover={{ scale: 1.1, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    aria-label={task.notificationsMuted ? "Unmute notifications" : "Mute notifications"}
+                    title={task.notificationsMuted ? "Unmute notifications - alerts will resume" : "Mute notifications - stop all alerts for this task"}
+                  >
+                    {task.notificationsMuted ? (
+                      <>
+                        <BellOff className="h-4 w-4 sm:h-4 sm:w-4" strokeWidth={2.5} />
+                        {/* Active indicator dot */}
+                        <span className="absolute -top-0.5 -right-0.5 h-2 w-2 bg-white rounded-full border border-orange-500" />
+                      </>
+                    ) : (
+                      <Bell className="h-4 w-4 sm:h-4 sm:w-4" strokeWidth={2.5} />
+                    )}
+                  </motion.button>
+                </>
+              )}
+
               {/* Duplicate Button - Show when overdue with incomplete subtasks */}
               {onDuplicate && isOverdue && hasIncompleteSubtasks && (
                 <motion.button

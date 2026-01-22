@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,7 +22,7 @@ interface EditTaskModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   task: Task | null
-  onUpdate: (id: string, updates: Partial<Task>) => void
+  onUpdate: (id: string, updates: Partial<Task>, successMessage?: string) => void
 }
 
 export function EditTaskModal({ open, onOpenChange, task, onUpdate }: EditTaskModalProps) {
@@ -87,7 +88,7 @@ export function EditTaskModal({ open, onOpenChange, task, onUpdate }: EditTaskMo
       updates.subtasks = []
     }
 
-    onUpdate(task.id, updates)
+    onUpdate(task.id, updates, "Task updated successfully")
     onOpenChange(false)
   }
 
@@ -112,6 +113,9 @@ export function EditTaskModal({ open, onOpenChange, task, onUpdate }: EditTaskMo
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Edit Task</DialogTitle>
+          <DialogDescription>
+            Update your task details below. Click "Update Task" when you're done.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">

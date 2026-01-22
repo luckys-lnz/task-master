@@ -80,7 +80,6 @@ export function AccountSettings({ user }: AccountSettingsProps) {
       // Sign out and redirect
       await signOut({ callbackUrl: "/" });
     } catch (error) {
-      console.error("Error deleting account:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to delete account. Please try again.",

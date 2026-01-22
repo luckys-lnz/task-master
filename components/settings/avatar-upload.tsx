@@ -98,7 +98,6 @@ export function AvatarUpload({
           description: "Your profile picture has been uploaded successfully.",
         });
       } catch (error) {
-        console.error("Error uploading image:", error);
         setPreview(null); // Clear preview on error
         toast({
           title: "Error",

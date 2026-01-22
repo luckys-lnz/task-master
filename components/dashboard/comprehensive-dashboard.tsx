@@ -41,6 +41,7 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
     description?: string
     priority?: Task["priority"]
     subtasks?: Task["subtasks"]
+    duplicatedFromTaskId?: string
   } | null>(null)
   const [isFiltering, setIsFiltering] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -58,8 +59,8 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
     // Request notification permission
     notificationService.requestNotificationPermission()
     
-    // Start monitoring tasks
-    const cleanup = notificationService.startMonitoring(todos || [])
+    // Start monitoring tasks with a function that gets fresh todos
+    const cleanup = notificationService.startMonitoring(() => todos || [])
     
     return () => cleanup()
   }, [mounted, isLoading, todos])
@@ -155,41 +156,55 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
         break
     }
 
-    // Sort tasks by due date (earliest first)
+    // Sort tasks by timestamp (due date/time), with overdue and completed at bottom
     filtered.sort((a, b) => {
-      // Tasks without due dates go to the end
-      if (!a.dueDate && !b.dueDate) return 0
-      if (!a.dueDate) return 1
-      if (!b.dueDate) return -1
-
-      // Create full date-time objects for accurate comparison
-      const aDate = new Date(a.dueDate)
-      const bDate = new Date(b.dueDate)
-
-      // Apply time if available
-      if (a.dueTime) {
-        const [aHours, aMinutes] = a.dueTime.split(":").map(Number)
-        aDate.setHours(aHours, aMinutes, 0, 0)
-      } else {
-        aDate.setHours(23, 59, 59, 999)
+      // Helper function to get full timestamp (date + time)
+      const getTimestamp = (task: Task): number => {
+        if (!task.dueDate) return 0
+        const date = new Date(task.dueDate)
+        if (task.dueTime) {
+          const [hours, minutes] = task.dueTime.split(":").map(Number)
+          date.setHours(hours, minutes, 0, 0)
+        } else {
+          date.setHours(23, 59, 59, 999)
+        }
+        return date.getTime()
       }
-
-      if (b.dueTime) {
-        const [bHours, bMinutes] = b.dueTime.split(":").map(Number)
-        bDate.setHours(bHours, bMinutes, 0, 0)
-      } else {
-        bDate.setHours(23, 59, 59, 999)
+      
+      // Separate overdue and completed tasks - they go to the bottom
+      const aIsOverdueOrCompleted = a.status === "OVERDUE" || a.status === "COMPLETED"
+      const bIsOverdueOrCompleted = b.status === "OVERDUE" || b.status === "COMPLETED"
+      
+      // If one is overdue/completed and the other isn't, overdue/completed goes to bottom
+      if (aIsOverdueOrCompleted && !bIsOverdueOrCompleted) return 1
+      if (!aIsOverdueOrCompleted && bIsOverdueOrCompleted) return -1
+      
+      // If both are overdue/completed, sort them by timestamp (most recent first)
+      if (aIsOverdueOrCompleted && bIsOverdueOrCompleted) {
+        const aTimestamp = getTimestamp(a)
+        const bTimestamp = getTimestamp(b)
+        return bTimestamp - aTimestamp // Most recent first
       }
+      
+      // For active tasks, sort by due date/time (earliest first)
+      // Tasks without due dates go to the end (but before overdue/completed)
+      const aTimestamp = getTimestamp(a)
+      const bTimestamp = getTimestamp(b)
+      
+      if (aTimestamp === 0 && bTimestamp === 0) return 0
+      if (aTimestamp === 0) return 1
+      if (bTimestamp === 0) return -1
 
       // Sort by date-time (earliest first)
-      return aDate.getTime() - bDate.getTime()
+      return aTimestamp - bTimestamp
     })
 
     return filtered
   }, [todos, activeFilter])
 
   const handleAddTask = (task: Partial<Task>) => {
-    addTodo(task as Task)
+    const isDuplicate = !!(task as Task).duplicatedFromTaskId
+    addTodo(task as Task, isDuplicate ? "Task duplicated successfully" : "Task added successfully")
     setDuplicateTaskData(null) // Clear duplicate data after adding
   }
 
@@ -198,6 +213,7 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
     const uncompletedSubtasks = (task.subtasks || []).filter(st => !st.completed)
     
     // Set duplicate data and open add modal
+    // Store the original task ID so we can track it
     setDuplicateTaskData({
       title: task.title,
       description: task.description || "",
@@ -207,9 +223,60 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
         title: st.title,
         completed: false,
         task_id: ""
-      }))
+      })),
+      duplicatedFromTaskId: task.id, // Track which task this was duplicated from
     })
     setShowAddModal(true)
+  }
+
+  // Track when duplicated tasks have subtasks completed to auto-mute original
+  const handleTaskUpdate = async (id: string, updates: Partial<Task>, successMessage?: string) => {
+    await updateTodo(id, updates, successMessage)
+    
+    // Immediately update notification service if snooze/mute state changed
+    // The todos state will be updated by updateTodo, so we can access it after a brief delay
+    if (updates.notificationsMuted !== undefined || updates.snoozedUntil !== undefined) {
+      // Use a small delay to ensure state has updated
+      setTimeout(() => {
+        const updatedTask = todos?.find(t => t.id === id)
+        if (updatedTask) {
+          const notificationService = NotificationService.getInstance()
+          notificationService.updateTaskNotifications(updatedTask)
+        }
+      }, 200)
+    }
+    
+    // Check if this is a duplicated task with completed subtasks
+    // If so, mute notifications on the original task
+    if (updates.subtasks && updates.subtasks.length > 0) {
+      // Wait a bit for the update to complete, then check
+      setTimeout(() => {
+        const task = todos?.find(t => t.id === id)
+        if (task?.duplicatedFromTaskId) {
+          const completedCount = updates.subtasks!.filter(st => st.completed).length
+          
+          // If at least one subtask is completed, mute the original task
+          if (completedCount > 0) {
+            const originalTask = todos?.find(t => t.id === task.duplicatedFromTaskId)
+            if (originalTask && !originalTask.notificationsMuted && !originalTask.partiallyResolved) {
+              updateTodo(originalTask.id, {
+                notificationsMuted: true,
+                partiallyResolved: true,
+              }, "Original task alerts muted (subtasks completed in duplicate)").then(() => {
+                // Update notification service for the original task too
+                setTimeout(() => {
+                  const mutedTask = todos?.find(t => t.id === originalTask.id)
+                  if (mutedTask) {
+                    const notificationService = NotificationService.getInstance()
+                    notificationService.updateTaskNotifications(mutedTask)
+                  }
+                }, 200)
+              })
+            }
+          }
+        }
+      }, 200)
+    }
   }
 
   // Determine if user is new (no tasks)
@@ -317,7 +384,7 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
                     >
                       <EnhancedTaskCard
                         task={task}
-                        onUpdate={updateTodo}
+                        onUpdate={handleTaskUpdate}
                         onDelete={deleteTodo}
                         onEdit={(task) => {
                           setEditingTask(task)

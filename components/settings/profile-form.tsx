@@ -64,7 +64,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
           }
         }
       } catch (error) {
-        console.error("Error fetching current avatar:", error);
         // Silently fail - user can still use the form
       }
     };
@@ -95,7 +94,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
         description: "Your avatar has been updated successfully.",
       });
     } catch (error) {
-      console.error("Error updating session:", error);
       // Still show success since the upload and database update succeeded
       toast({
         title: "Upload successful",
@@ -166,7 +164,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
         } catch (jsonError) {
           // If response is not JSON, get text instead
           const text = await response.text();
-          console.error("Non-JSON error response:", text);
           throw new Error(`Failed to update profile: ${response.status} ${response.statusText}`);
         }
         
@@ -192,7 +189,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
       router.refresh();
     } catch (error) {
-      console.error("Error updating profile:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
