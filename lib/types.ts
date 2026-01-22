@@ -11,10 +11,13 @@ export interface Task {
   tags: string[];
   dueDate: string;
   dueTime: string;
+  startTime?: string;
+  endTime?: string;
   completedAt?: string;
   overdueAt?: string;
   lockedAfterDue: boolean;
   notificationsMuted?: boolean;
+  notifyOnStart?: boolean;
   snoozedUntil?: string;
   partiallyResolved?: boolean;
   duplicatedFromTaskId?: string;

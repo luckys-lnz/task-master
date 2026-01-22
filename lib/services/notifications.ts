@@ -43,12 +43,40 @@ export class NotificationService {
   }
 
   private scheduleNotificationsForTask(todo: Task) {
-    if (todo.status === "COMPLETED" || !todo.dueDate) return
+    if (todo.status === "COMPLETED") return
     
     // Skip notifications if muted or snoozed
     if (this.shouldSkipNotifications(todo)) return
     
     this.clearScheduled(todo.id)
+
+    const now = new Date()
+    const timeouts: NodeJS.Timeout[] = []
+
+    // Schedule start time notification (5 minutes before start)
+    // Only if task has startTime AND notifyOnStart is enabled (defaults to true)
+    if (todo.startTime && (todo.notifyOnStart !== false)) {
+      const startDate = new Date(todo.startTime)
+      const timeToStart = startDate.getTime() - now.getTime()
+      const timeTo5MinBeforeStart = timeToStart - 5 * 60 * 1000
+
+      // 5 minutes before start
+      if (timeTo5MinBeforeStart > 0) {
+        timeouts.push(setTimeout(() => {
+          const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+          // Check again if task is still not muted/snoozed and notifyOnStart is still enabled
+          if (!this.shouldSkipNotifications(currentTask) && (currentTask.notifyOnStart !== false)) {
+            this.notifyTodoistStyle(currentTask, "start-5min-before")
+          }
+        }, timeTo5MinBeforeStart))
+      }
+    }
+
+    // Schedule due time notifications (only if task has due date)
+    if (!todo.dueDate) {
+      this.scheduled.set(todo.id, timeouts)
+      return
+    }
 
     const dueDate = new Date(todo.dueDate)
     if (todo.dueTime) {
@@ -57,15 +85,12 @@ export class NotificationService {
     } else {
       dueDate.setHours(23, 59, 59, 999)
     }
-    const now = new Date()
     const timeToDue = dueDate.getTime() - now.getTime()
     
     // Calculate times for each notification
     const timeTo30MinBefore = timeToDue - 30 * 60 * 1000
     const timeTo15MinBefore = timeToDue - 15 * 60 * 1000
     const timeTo5MinBefore = timeToDue - 5 * 60 * 1000
-
-    const timeouts: NodeJS.Timeout[] = []
 
     // 30 minutes before due
     if (timeTo30MinBefore > 0) {
@@ -219,7 +244,7 @@ export class NotificationService {
     }
   }
 
-  private notifyTodoistStyle(todo: Task, type: "30min-before" | "15min-before" | "5min-before" | "due-now" | "overdue") {
+  private notifyTodoistStyle(todo: Task, type: "start-5min-before" | "30min-before" | "15min-before" | "5min-before" | "due-now" | "overdue") {
     // Final check: skip if muted or snoozed
     if (this.shouldSkipNotifications(todo)) return
     
@@ -229,27 +254,40 @@ export class NotificationService {
     let title = ""
     let description = ""
     let variant: "default" | "destructive" = "default"
-    const dueDateStr = todo.dueDate ? format(new Date(todo.dueDate), "MMM d, yyyy") : ""
-    const dueTimeStr = todo.dueTime || (todo.dueDate ? format(new Date(todo.dueDate), "h:mm a") : "")
-    const fullDue = [dueDateStr, dueTimeStr ? `at ${dueTimeStr}` : ""].filter(Boolean).join(" ")
+    
+    if (type === "start-5min-before") {
+      // Start time notification
+      const startDate = todo.startTime ? new Date(todo.startTime) : null
+      const startDateStr = startDate ? format(startDate, "MMM d, yyyy") : ""
+      const startTimeStr = startDate ? format(startDate, "h:mm a") : ""
+      const fullStart = [startDateStr, startTimeStr ? `at ${startTimeStr}` : ""].filter(Boolean).join(" ")
+      
+      title = "Task Starting Soon"
+      description = `"${todo.title}" starts in 5 mins (${fullStart})`
+    } else {
+      // Due time notifications
+      const dueDateStr = todo.dueDate ? format(new Date(todo.dueDate), "MMM d, yyyy") : ""
+      const dueTimeStr = todo.dueTime || (todo.dueDate ? format(new Date(todo.dueDate), "h:mm a") : "")
+      const fullDue = [dueDateStr, dueTimeStr ? `at ${dueTimeStr}` : ""].filter(Boolean).join(" ")
 
-    if (type === "30min-before") {
-      title = "Task Due Soon"
-      description = `"${todo.title}" is due in 30 minutes (${fullDue})`
-    } else if (type === "15min-before") {
-      title = "Task Due Soon"
-      description = `"${todo.title}" is due in 15 minutes (${fullDue})`
-    } else if (type === "5min-before") {
-      title = "Task Due Soon"
-      description = `"${todo.title}" is due in 5 minutes (${fullDue})`
-    } else if (type === "due-now") {
-      title = "Task Due Now"
-      description = `"${todo.title}" is due now (${fullDue})`
-      variant = "destructive"
-    } else if (type === "overdue") {
-      title = "Task Overdue"
-      description = `"${todo.title}" was due ${fullDue}`
-      variant = "destructive"
+      if (type === "30min-before") {
+        title = "Task Due Soon"
+        description = `"${todo.title}" is due in 30 minutes (${fullDue})`
+      } else if (type === "15min-before") {
+        title = "Task Due Soon"
+        description = `"${todo.title}" is due in 15 minutes (${fullDue})`
+      } else if (type === "5min-before") {
+        title = "Task Due Soon"
+        description = `"${todo.title}" is due in 5 minutes (${fullDue})`
+      } else if (type === "due-now") {
+        title = "Task Due Now"
+        description = `"${todo.title}" is due now (${fullDue})`
+        variant = "destructive"
+      } else if (type === "overdue") {
+        title = "Task Overdue"
+        description = `"${todo.title}" was due ${fullDue}`
+        variant = "destructive"
+      }
     }
 
     // Show toast notification
