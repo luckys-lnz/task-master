@@ -58,16 +58,10 @@ export async function POST(req: Request) {
       emailResult = await sendPasswordResetEmail(user.email!, token);
       
       if (!emailResult.success) {
-        console.error("❌ Failed to send password reset email:", emailResult.error);
-        console.error("📧 Reset URL (for manual use):", emailResult.verificationUrl);
         // Don't throw error - still return success to prevent email enumeration
-        // But log the error for debugging
-      } else {
-        console.log("✅ Password reset email sent successfully to:", user.email);
       }
     } catch (error) {
       // Log error but don't expose it
-      console.error("❌ Error sending password reset email:", error);
       emailResult = { 
         success: false, 
         error: error instanceof Error ? error.message : "Unknown error" 

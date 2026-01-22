@@ -114,10 +114,6 @@ export async function POST(req: Request) {
     const emailResult = await sendVerificationEmail(normalizedEmail, token);
 
     if (!emailResult.success) {
-      console.error("❌ Failed to send verification email:", emailResult.error);
-      console.error("📧 Verification URL (for manual use):", emailResult.verificationUrl);
-    } else {
-      console.log("✅ Verification email sent successfully to:", normalizedEmail);
     }
 
     return NextResponse.json(

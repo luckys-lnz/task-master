@@ -29,10 +29,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="icon" type="image/png" href="/logo.png" />
-        <link rel="apple-touch-icon" href="/logo.png" />
-      </head>
       <body className={`${inter.className} antialiased min-h-screen bg-background text-foreground`} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
