@@ -7,6 +7,8 @@ export class NotificationService {
   private static instance: NotificationService
   private notifications: Map<string, NodeJS.Timeout> = new Map()
   private scheduled: Map<string, NodeJS.Timeout[]> = new Map()
+  private currentTodos: Task[] = [] // Store current todos for state checks in timeouts
+  private getFreshTodos: (() => Task[]) | null = null // Function to get fresh todos
 
   private constructor() {}
 
@@ -25,8 +27,27 @@ export class NotificationService {
     }
   }
 
+  private shouldSkipNotifications(todo: Task): boolean {
+    // Skip if notifications are muted
+    if (todo.notificationsMuted) return true
+    
+    // Skip if snoozed and snooze hasn't expired
+    if (todo.snoozedUntil) {
+      const snoozeDate = new Date(todo.snoozedUntil)
+      if (snoozeDate > new Date()) {
+        return true // Still snoozed
+      }
+    }
+    
+    return false
+  }
+
   private scheduleNotificationsForTask(todo: Task) {
     if (todo.status === "COMPLETED" || !todo.dueDate) return
+    
+    // Skip notifications if muted or snoozed
+    if (this.shouldSkipNotifications(todo)) return
+    
     this.clearScheduled(todo.id)
 
     const dueDate = new Date(todo.dueDate)
@@ -49,38 +70,120 @@ export class NotificationService {
     // 30 minutes before due
     if (timeTo30MinBefore > 0) {
       timeouts.push(setTimeout(() => {
-        this.notifyTodoistStyle(todo, "30min-before")
+        const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+        this.notifyTodoistStyle(currentTask, "30min-before")
       }, timeTo30MinBefore))
     }
     
     // 15 minutes before due
     if (timeTo15MinBefore > 0) {
       timeouts.push(setTimeout(() => {
-        this.notifyTodoistStyle(todo, "15min-before")
+        const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+        this.notifyTodoistStyle(currentTask, "15min-before")
       }, timeTo15MinBefore))
     }
     
     // 5 minutes before due
     if (timeTo5MinBefore > 0) {
       timeouts.push(setTimeout(() => {
-        this.notifyTodoistStyle(todo, "5min-before")
+        const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+        this.notifyTodoistStyle(currentTask, "5min-before")
       }, timeTo5MinBefore))
     }
     
     // At due time
     if (timeToDue > 0) {
       timeouts.push(setTimeout(() => {
-        this.notifyTodoistStyle(todo, "due-now")
+        const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+        this.notifyTodoistStyle(currentTask, "due-now")
       }, timeToDue))
     }
     
     // Overdue (if not completed)
+    // Only notify about overdue tasks once per day to avoid spam
+    // But skip if muted or snoozed
     if (timeToDue < 0) {
-      this.notifyTodoistStyle(todo, "overdue")
+      // Get fresh task state to check snooze/mute
+      let currentTask = this.currentTodos.find(t => t.id === todo.id)
+      if (!currentTask && this.getFreshTodos) {
+        const freshTodos = this.getFreshTodos()
+        currentTask = freshTodos.find(t => t.id === todo.id)
+        if (currentTask) {
+          const index = this.currentTodos.findIndex(t => t.id === todo.id)
+          if (index >= 0) {
+            this.currentTodos[index] = currentTask
+          } else {
+            this.currentTodos.push(currentTask)
+          }
+        }
+      }
+      const taskToCheck = currentTask || todo
+      
+      // Skip if muted or snoozed - check current state
+      if (this.shouldSkipNotifications(taskToCheck)) {
+        // Task is muted/snoozed, don't notify
+        return
+      }
+      
+      // Check if we've already notified about this overdue task today
+      const today = new Date().toDateString()
+      
+      // Check localStorage to see if we've notified today
+      if (typeof window !== 'undefined') {
+        const lastNotifiedDate = localStorage.getItem(`overdue-notified-${taskToCheck.id}`)
+        if (lastNotifiedDate === today) {
+          // Already notified today, skip
+          return
+        }
+      }
+      
+      // Notify and mark as notified for today
+      this.notifyTodoistStyle(taskToCheck, "overdue")
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`overdue-notified-${taskToCheck.id}`, today)
+      }
     } else {
       // Schedule overdue notification right after due time
       timeouts.push(setTimeout(() => {
-        this.notifyTodoistStyle(todo, "overdue")
+        // Get fresh task state (in case it was muted/snoozed in the meantime)
+        let currentTask = this.currentTodos.find(t => t.id === todo.id)
+        
+        // If not found in currentTodos, try to get fresh todos
+        if (!currentTask && this.getFreshTodos) {
+          const freshTodos = this.getFreshTodos()
+          currentTask = freshTodos.find(t => t.id === todo.id)
+          // Update currentTodos with fresh data
+          if (currentTask) {
+            const index = this.currentTodos.findIndex(t => t.id === todo.id)
+            if (index >= 0) {
+              this.currentTodos[index] = currentTask
+            } else {
+              this.currentTodos.push(currentTask)
+            }
+          }
+        }
+        
+        const taskToNotify = currentTask || todo
+        
+        // Check again when notification fires - this is critical!
+        if (this.shouldSkipNotifications(taskToNotify)) {
+          // Task was muted/snoozed, don't notify
+          return
+        }
+        
+        // Check if we've already notified today
+        if (typeof window !== 'undefined') {
+          const today = new Date().toDateString()
+          const lastNotifiedDate = localStorage.getItem(`overdue-notified-${taskToNotify.id}`)
+          if (lastNotifiedDate === today) {
+            // Already notified today, skip
+            return
+          }
+          // Mark as notified when it becomes overdue
+          localStorage.setItem(`overdue-notified-${taskToNotify.id}`, today)
+        }
+        
+        this.notifyTodoistStyle(taskToNotify, "overdue")
       }, Math.max(timeToDue, 0) + 1000))
     }
     this.scheduled.set(todo.id, timeouts)
@@ -117,6 +220,9 @@ export class NotificationService {
   }
 
   private notifyTodoistStyle(todo: Task, type: "30min-before" | "15min-before" | "5min-before" | "due-now" | "overdue") {
+    // Final check: skip if muted or snoozed
+    if (this.shouldSkipNotifications(todo)) return
+    
     const notificationId = `${todo.id}-${type}`
     if (this.notifications.has(notificationId)) return
 
@@ -186,7 +292,7 @@ export class NotificationService {
     }, 24 * 60 * 60 * 1000))
   }
 
-  public startMonitoring(todos: Task[]) {
+  public startMonitoring(todos: Task[] | (() => Task[])) {
     // Clear all scheduled notifications
     this.scheduled.forEach((timeouts) => {
       timeouts.forEach(clearTimeout)
@@ -194,15 +300,64 @@ export class NotificationService {
     this.scheduled.clear()
     this.notifications.clear()
 
+    // Clean up old overdue notification tracking (older than today)
+    if (typeof window !== 'undefined') {
+      const today = new Date().toDateString()
+      const keysToRemove: string[] = []
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key?.startsWith('overdue-notified-')) {
+          const notifiedDate = localStorage.getItem(key)
+          // Remove if it's from a previous day
+          if (notifiedDate && notifiedDate !== today) {
+            keysToRemove.push(key)
+          }
+        }
+      }
+      
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+    }
+
+    // Store function to get fresh todos
+    if (typeof todos === 'function') {
+      this.getFreshTodos = todos
+      this.currentTodos = todos()
+    } else {
+      this.currentTodos = todos
+      this.getFreshTodos = () => todos
+    }
+
     // Schedule notifications for all tasks
-    todos.forEach(todo => this.scheduleNotificationsForTask(todo))
+    this.currentTodos.forEach(todo => this.scheduleNotificationsForTask(todo))
 
     // Re-schedule every 5 minutes in case tasks change
     const interval = setInterval(() => {
-      todos.forEach(todo => this.scheduleNotificationsForTask(todo))
+      if (this.getFreshTodos) {
+        const freshTodos = this.getFreshTodos()
+        this.currentTodos = freshTodos
+        freshTodos.forEach(todo => this.scheduleNotificationsForTask(todo))
+      }
     }, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
+  }
+
+  // Method to immediately update notifications for a specific task
+  public updateTaskNotifications(task: Task) {
+    // Clear existing notifications for this task
+    this.clearScheduled(task.id)
+    
+    // Update currentTodos with the new task state
+    const taskIndex = this.currentTodos.findIndex(t => t.id === task.id)
+    if (taskIndex >= 0) {
+      this.currentTodos[taskIndex] = task
+    } else {
+      this.currentTodos.push(task)
+    }
+    
+    // Re-schedule notifications for this task
+    this.scheduleNotificationsForTask(task)
   }
 
   public async requestNotificationPermission() {

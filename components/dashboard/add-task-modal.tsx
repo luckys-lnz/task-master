@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +27,7 @@ interface AddTaskModalProps {
     description?: string
     priority?: Task["priority"]
     subtasks?: Task["subtasks"]
+    duplicatedFromTaskId?: string
   }
 }
 
@@ -95,6 +97,7 @@ export function AddTaskModal({ open, onOpenChange, onAdd, initialData }: AddTask
       tags: [],
       lockedAfterDue: false,
       notes: "",
+      duplicatedFromTaskId: initialData?.duplicatedFromTaskId,
       createdAt: new Date().toISOString(),
     }
 
@@ -115,7 +118,14 @@ export function AddTaskModal({ open, onOpenChange, onAdd, initialData }: AddTask
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Add New Task</DialogTitle>
+          <DialogTitle className="text-xl font-bold">
+            {initialData ? "Duplicate Task" : "Add New Task"}
+          </DialogTitle>
+          <DialogDescription>
+            {initialData 
+              ? "Create a copy of this task with uncompleted subtasks. You can set a new due date and time."
+              : "Create a new task with details below. Add subtasks, set priority, and schedule it."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
