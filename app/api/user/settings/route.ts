@@ -30,7 +30,6 @@ export async function GET() {
 
     return NextResponse.json(userSettings);
   } catch (error) {
-    console.error("Error fetching user settings:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -57,7 +56,6 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json(updatedUser[0]);
   } catch (error) {
-    console.error("Error updating user settings:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.errors },

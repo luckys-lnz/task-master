@@ -64,7 +64,6 @@ export async function POST(req: Request) {
         });
       uploadError = error;
     } catch (err: any) {
-      console.error("Supabase client error:", err);
       // Check if it's a configuration error
       if (err.message?.includes('Missing') || err.message?.includes('environment variable')) {
         return NextResponse.json(
@@ -106,7 +105,6 @@ export async function POST(req: Request) {
       .getPublicUrl(filePath);
 
     if (!urlData?.publicUrl) {
-      console.error("Failed to get public URL for uploaded file");
       return NextResponse.json(
         { error: "File uploaded but failed to get public URL. Please try again." },
         { status: 500 }
@@ -141,12 +139,10 @@ export async function POST(req: Request) {
             .remove([oldFileName]);
           
           if (deleteError) {
-            console.error("Failed to delete old avatar:", deleteError);
           }
         }
       } catch (deleteError) {
         // Log but don't fail the upload if deletion fails
-        console.error("Failed to delete old avatar:", deleteError);
       }
     }
 
@@ -156,7 +152,6 @@ export async function POST(req: Request) {
       message: "File uploaded successfully",
     });
   } catch (error: any) {
-    console.error("Avatar upload error:", error);
     
     // Check for Supabase configuration errors
     if (error.message?.includes('Missing') || error.message?.includes('environment variable')) {

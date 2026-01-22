@@ -56,10 +56,8 @@ export async function POST(req: Request) {
     try {
       emailResult = await sendVerificationEmail(user.email!, token);
       if (!emailResult.success && emailResult.error) {
-        console.error("Failed to send verification email:", emailResult.error);
       }
     } catch (error) {
-      console.error("Failed to send verification email:", error);
       emailResult = { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
 
