@@ -64,7 +64,7 @@ export function useDatabaseTodos() {
   }
 
   // Add a new task to the database
-  const addTodo = async (todo: Task) => {
+  const addTodo = async (todo: Task, successMessage?: string) => {
     try {
       const response = await fetch("/api/tasks", {
         method: "POST",
@@ -76,9 +76,11 @@ export function useDatabaseTodos() {
       const newTodo = await response.json()
       setTodos((prevTodos) => [...prevTodos, newTodo])
 
+      const message = successMessage || (todo.duplicatedFromTaskId ? "Task duplicated successfully" : "Task added successfully")
+      
       toast({
-        title: "Task added",
-        description: "Your task has been added successfully",
+        title: "Success",
+        description: message,
       })
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to add todo"))
@@ -91,7 +93,7 @@ export function useDatabaseTodos() {
   }
 
   // Update an existing task in the database
-  const updateTodo = async (id: string, updates: Partial<Task>) => {
+  const updateTodo = async (id: string, updates: Partial<Task>, successMessage?: string) => {
     try {
       const response = await fetch(`/api/tasks/${id}`, {
         method: "PATCH",
@@ -111,12 +113,47 @@ export function useDatabaseTodos() {
         prevTodos.map((todo) => (todo.id === id ? updatedTodo : todo))
       );
 
+      // Determine the success message based on what was updated
+      // Priority: explicit message > status change > notification controls > subtasks > generic
+      let message = successMessage || "Task updated successfully";
+      
+      if (!successMessage) {
+        // Check status changes first (most important user action)
+        if (updates.status === "COMPLETED") {
+          message = "Task completed successfully";
+        } else if (updates.status === "PENDING" && updates.completedAt === null) {
+          // Only show "reopened" if we're clearing completed_at (not just setting status)
+          message = "Task reopened successfully";
+        } else if (updates.status === "OVERDUE") {
+          message = "Task marked as overdue";
+        } 
+        // Then check notification controls (only if status didn't change)
+        else if (updates.notificationsMuted !== undefined) {
+          message = updates.notificationsMuted 
+            ? "Notifications muted successfully" 
+            : "Notifications unmuted successfully";
+        } else if (updates.snoozedUntil !== undefined) {
+          if (updates.snoozedUntil === null || updates.snoozedUntil === undefined) {
+            message = "Snooze cleared - notifications reactivated";
+          } else {
+            message = "Notifications snoozed successfully";
+          }
+        } else if (updates.partiallyResolved !== undefined) {
+          message = updates.partiallyResolved
+            ? "Task marked as partially resolved"
+            : "Partially resolved status cleared";
+        } 
+        // Then check subtasks (only if nothing else matched)
+        else if (updates.subtasks !== undefined) {
+          message = "Subtasks updated successfully";
+        }
+      }
+
       toast({
         title: "Success",
-        description: "Task updated successfully",
+        description: message,
       });
     } catch (err) {
-      console.error("Error updating task:", err);
       toast({
         title: "Error",
         description: err instanceof Error ? err.message : "Failed to update task",
