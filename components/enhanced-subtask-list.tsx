@@ -19,6 +19,7 @@ interface EnhancedSubtaskListProps {
   onAdd: (subtask: Subtask) => void
   onDelete: (id: string) => void
   variant?: TaskCardVariant
+  disabled?: boolean // Disable all interactions when task is locked
 }
 
 export function EnhancedSubtaskList({ 
@@ -26,7 +27,8 @@ export function EnhancedSubtaskList({
   onToggle, 
   onAdd, 
   onDelete,
-  variant = "premium-modern"
+  variant = "premium-modern",
+  disabled = false
 }: EnhancedSubtaskListProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("")
   const [isCompletedOpen, setIsCompletedOpen] = useState(false)
@@ -89,25 +91,35 @@ export function EnhancedSubtaskList({
             >
               <Checkbox
                 checked={false}
-                onCheckedChange={(checked) => onToggle(subtask.id, !!checked)}
+                onCheckedChange={(checked) => {
+                  if (!disabled) {
+                    onToggle(subtask.id, !!checked)
+                  }
+                }}
+                disabled={disabled}
                 id={`subtask-${subtask.id}`}
                 className="flex-shrink-0"
               />
               <label
                 htmlFor={`subtask-${subtask.id}`}
-                className="flex-1 text-sm cursor-pointer"
+                className={cn(
+                  "flex-1 text-sm",
+                  disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                )}
               >
                 {subtask.title}
               </label>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => onDelete(subtask.id)} 
-                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span className="sr-only">Delete</span>
-              </Button>
+              {!disabled && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => onDelete(subtask.id)} 
+                  className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span className="sr-only">Delete</span>
+                </Button>
+              )}
             </div>
           ))}
         </div>
@@ -193,35 +205,37 @@ export function EnhancedSubtaskList({
       )}
 
       {/* Add New Subtask */}
-      <div className={cn(
-        "flex gap-2",
-        variant === "ultra-minimal" && "pt-2"
-      )}>
-        <Input
-          value={newSubtaskTitle}
-          onChange={(e) => setNewSubtaskTitle(e.target.value)}
-          placeholder="Add a subtask"
-          className={variantStyles.input}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleAddSubtask()
-            }
-          }}
-        />
-        <Button 
-          type="button" 
-          size="sm" 
-          variant="outline" 
-          onClick={handleAddSubtask} 
-          disabled={!newSubtaskTitle.trim()}
-          className={cn(
-            "flex-shrink-0",
-            variant === "ultra-minimal" && "border-0 border-b border-border/30 rounded-none bg-transparent"
-          )}
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+      {!disabled && (
+        <div className={cn(
+          "flex gap-2",
+          variant === "ultra-minimal" && "pt-2"
+        )}>
+          <Input
+            value={newSubtaskTitle}
+            onChange={(e) => setNewSubtaskTitle(e.target.value)}
+            placeholder="Add a subtask"
+            className={variantStyles.input}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleAddSubtask()
+              }
+            }}
+          />
+          <Button 
+            type="button" 
+            size="sm" 
+            variant="outline" 
+            onClick={handleAddSubtask} 
+            disabled={!newSubtaskTitle.trim()}
+            className={cn(
+              "flex-shrink-0",
+              variant === "ultra-minimal" && "border-0 border-b border-border/30 rounded-none bg-transparent"
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -46,8 +46,21 @@ async function createTestTask() {
     const createdTask = await response.json();
     console.log("✅ Test task created successfully!");
     console.log("Task ID:", createdTask.id);
+    console.log("Start time:", startTime.toLocaleString());
     console.log("Expected notification message: 'Task Starting Soon' - '\"Test Task - Start Notification\" starts in 5 mins'");
     console.log("\n⏰ Wait ~1 minute and you should see the notification!");
+    
+    // Immediately update notification service
+    if (typeof NotificationService !== 'undefined') {
+      const notificationService = NotificationService.getInstance();
+      notificationService.updateTaskNotifications(createdTask);
+      console.log("✅ Notification service updated for new task");
+      
+      // Check scheduled notifications
+      const scheduled = notificationService.getScheduledNotifications();
+      const taskScheduled = scheduled.find(s => s.taskId === createdTask.id);
+      console.log(`📅 Task has ${taskScheduled ? taskScheduled.count : 0} scheduled notifications`);
+    }
     
     return createdTask;
   } catch (error) {
