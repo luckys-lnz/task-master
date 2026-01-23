@@ -122,17 +122,32 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
     switch (activeFilter) {
       case "today":
         filtered = filtered.filter(task => {
-          if (!task.dueDate) return false
-          return isSameDay(new Date(task.dueDate), new Date())
+          // Use startTime for filtering - if task starts today, show it in today
+          if (task.startTime) {
+            return isSameDay(new Date(task.startTime), new Date())
+          }
+          // Fallback to dueDate if startTime is not available
+          if (task.dueDate) {
+            return isSameDay(new Date(task.dueDate), new Date())
+          }
+          return false
         })
         break
       case "upcoming":
         filtered = filtered.filter(task => {
-          if (!task.dueDate) return false
-          return isAfter(startOfDay(new Date(task.dueDate)), startOfDay(new Date()))
+          // Use startTime for filtering - if task starts after today, show it in upcoming
+          if (task.startTime) {
+            return isAfter(startOfDay(new Date(task.startTime)), startOfDay(new Date()))
+          }
+          // Fallback to dueDate if startTime is not available
+          if (task.dueDate) {
+            return isAfter(startOfDay(new Date(task.dueDate)), startOfDay(new Date()))
+          }
+          return false
         })
         break
       case "inProgress":
+        // In progress = PENDING status (excludes OVERDUE and COMPLETED)
         filtered = filtered.filter(task => task.status === "PENDING")
         break
       case "completed":
@@ -156,19 +171,25 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
         break
     }
 
-    // Sort tasks by timestamp (due date/time), with overdue and completed at bottom
+    // Sort tasks by start time (earliest first), with overdue and completed at bottom
     filtered.sort((a, b) => {
-      // Helper function to get full timestamp (date + time)
-      const getTimestamp = (task: Task): number => {
-        if (!task.dueDate) return 0
-        const date = new Date(task.dueDate)
-        if (task.dueTime) {
-          const [hours, minutes] = task.dueTime.split(":").map(Number)
-          date.setHours(hours, minutes, 0, 0)
-        } else {
-          date.setHours(23, 59, 59, 999)
+      // Helper function to get start time timestamp
+      const getStartTimestamp = (task: Task): number => {
+        if (task.startTime) {
+          return new Date(task.startTime).getTime()
         }
-        return date.getTime()
+        // Fallback to due date/time if startTime is not available
+        if (task.dueDate) {
+          const date = new Date(task.dueDate)
+          if (task.dueTime) {
+            const [hours, minutes] = task.dueTime.split(":").map(Number)
+            date.setHours(hours, minutes, 0, 0)
+          } else {
+            date.setHours(23, 59, 59, 999)
+          }
+          return date.getTime()
+        }
+        return 0
       }
       
       // Separate overdue and completed tasks - they go to the bottom
@@ -181,21 +202,21 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
       
       // If both are overdue/completed, sort them by timestamp (most recent first)
       if (aIsOverdueOrCompleted && bIsOverdueOrCompleted) {
-        const aTimestamp = getTimestamp(a)
-        const bTimestamp = getTimestamp(b)
+        const aTimestamp = getStartTimestamp(a)
+        const bTimestamp = getStartTimestamp(b)
         return bTimestamp - aTimestamp // Most recent first
       }
       
-      // For active tasks, sort by due date/time (earliest first)
-      // Tasks without due dates go to the end (but before overdue/completed)
-      const aTimestamp = getTimestamp(a)
-      const bTimestamp = getTimestamp(b)
+      // For active tasks, sort by start time (earliest first)
+      // Tasks without start times go to the end (but before overdue/completed)
+      const aTimestamp = getStartTimestamp(a)
+      const bTimestamp = getStartTimestamp(b)
       
       if (aTimestamp === 0 && bTimestamp === 0) return 0
       if (aTimestamp === 0) return 1
       if (bTimestamp === 0) return -1
 
-      // Sort by date-time (earliest first)
+      // Sort by start time (earliest first)
       return aTimestamp - bTimestamp
     })
 
