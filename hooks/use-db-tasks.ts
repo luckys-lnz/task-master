@@ -64,7 +64,7 @@ export function useDatabaseTodos() {
   }
 
   // Add a new task to the database
-  const addTodo = async (todo: Task, successMessage?: string) => {
+  const addTodo = async (todo: Task, successMessage?: string): Promise<Task | null> => {
     try {
       const response = await fetch("/api/tasks", {
         method: "POST",
@@ -82,6 +82,8 @@ export function useDatabaseTodos() {
         title: "Success",
         description: message,
       })
+      
+      return newTodo
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to add todo"))
       toast({
@@ -89,6 +91,7 @@ export function useDatabaseTodos() {
         description: "Failed to add task",
         variant: "destructive",
       })
+      return null
     }
   }
 

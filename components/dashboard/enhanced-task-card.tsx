@@ -118,25 +118,31 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
   }
 
   const handleSubtaskToggle = (subtaskId: string, completed: boolean) => {
+    // Prevent ALL subtask modifications if task is overdue and locked
+    // User can only duplicate the task, not modify subtasks
+    if (isOverdue && task.lockedAfterDue) {
+      return
+    }
+
     const updatedSubtasks = (task.subtasks || []).map(subtask =>
       subtask.id === subtaskId
         ? { ...subtask, completed, task_id: task.id }
         : { ...subtask, task_id: task.id }
     )
-    
+
     // Check if all subtasks are completed
     const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(st => st.completed)
-    
+
     // If all subtasks are completed and task is not already completed, mark task as completed
     const updates: Partial<Task> = { subtasks: updatedSubtasks }
     let message = completed ? "Subtask completed" : "Subtask reopened"
-    
+
     if (allCompleted && task.status !== "COMPLETED") {
       updates.status = "COMPLETED"
       updates.completedAt = new Date().toISOString()
       message = "All subtasks completed! Task marked as complete"
     }
-    
+
     onUpdate(task.id, updates, message)
   }
 
@@ -589,12 +595,20 @@ export function EnhancedTaskCard({ task, onUpdate, onDelete, onEdit, onDuplicate
               className="overflow-hidden"
             >
               <div className="px-4 pb-4 border-t border-border/50 pt-4">
+                {isOverdue && task.lockedAfterDue && (
+                  <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                    <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                      This task is overdue and locked. You cannot modify subtasks. Use the duplicate button to create a new task with uncompleted subtasks.
+                    </p>
+                  </div>
+                )}
                 <EnhancedSubtaskList
                   subtasks={subtasks}
                   onToggle={handleSubtaskToggle}
                   onAdd={handleSubtaskAdd}
                   onDelete={handleSubtaskDelete}
                   variant="premium-modern"
+                  disabled={isOverdue && task.lockedAfterDue}
                 />
               </div>
             </motion.div>
