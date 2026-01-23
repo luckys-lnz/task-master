@@ -1,6 +1,7 @@
 import { toast } from "@/components/ui/use-toast"
 import type { Task } from "@/lib/types"
 import { format } from "date-fns"
+import { ServiceWorkerRegistration } from "./service-worker-registration"
 
 
 export class NotificationService {
@@ -9,8 +10,28 @@ export class NotificationService {
   private scheduled: Map<string, NodeJS.Timeout[]> = new Map()
   private currentTodos: Task[] = [] // Store current todos for state checks in timeouts
   private getFreshTodos: (() => Task[]) | null = null // Function to get fresh todos
+  private swRegistration: ServiceWorkerRegistration | null = null
+  private useServiceWorker: boolean = false
 
-  private constructor() {}
+  private constructor() {
+    // Initialize Service Worker registration (async, don't block)
+    if (typeof window !== 'undefined') {
+      ServiceWorkerRegistration.getInstance()
+        .then((sw) => {
+          this.swRegistration = sw
+          // Check if ready after a short delay to allow registration
+          setTimeout(() => {
+            this.useServiceWorker = sw.isSupported() && sw.isReady()
+            if (this.useServiceWorker) {
+              console.log('[NotificationService] Using Service Worker for background notifications')
+            }
+          }, 1000)
+        })
+        .catch(() => {
+          this.useServiceWorker = false
+        })
+    }
+  }
 
   static getInstance(): NotificationService {
     if (!NotificationService.instance) {
@@ -20,10 +41,22 @@ export class NotificationService {
   }
 
   private clearScheduled(taskId: string) {
+    // Clear setTimeout-based notifications
     const timeouts = this.scheduled.get(taskId)
     if (timeouts) {
       timeouts.forEach(clearTimeout)
       this.scheduled.delete(taskId)
+    }
+    
+    // Clear Service Worker notifications (async, but don't wait)
+    if (this.swRegistration && this.useServiceWorker) {
+      // Cancel all notification types for this task
+      const types = ['start-5min-before', '30min-before', '15min-before', '5min-before', 'due-now', 'overdue']
+      types.forEach(type => {
+        this.swRegistration!.cancelNotification(taskId, type).catch(() => {
+          // Ignore errors
+        })
+      })
     }
   }
 
@@ -49,6 +82,11 @@ export class NotificationService {
     if (this.shouldSkipNotifications(todo)) return
     
     this.clearScheduled(todo.id)
+    
+    // Debug: Log scheduling attempt
+    if (typeof window !== 'undefined' && (window as any).__DEBUG_NOTIFICATIONS__) {
+      console.log(`[NotificationService] Scheduling notifications for task: ${todo.id} (${todo.title})`)
+    }
 
     const now = new Date()
     const timeouts: NodeJS.Timeout[] = []
@@ -57,18 +95,64 @@ export class NotificationService {
     // Only if task has startTime AND notifyOnStart is enabled (defaults to true)
     if (todo.startTime && (todo.notifyOnStart !== false)) {
       const startDate = new Date(todo.startTime)
+      
+      // Validate the date
+      if (isNaN(startDate.getTime())) {
+        console.warn(`Invalid startTime for task ${todo.id}:`, todo.startTime)
+        return
+      }
+      
       const timeToStart = startDate.getTime() - now.getTime()
       const timeTo5MinBeforeStart = timeToStart - 5 * 60 * 1000
 
-      // 5 minutes before start
+      // 5 minutes before start - also handle if we're already past that time but before start
       if (timeTo5MinBeforeStart > 0) {
-        timeouts.push(setTimeout(() => {
-          const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
-          // Check again if task is still not muted/snoozed and notifyOnStart is still enabled
-          if (!this.shouldSkipNotifications(currentTask) && (currentTask.notifyOnStart !== false)) {
-            this.notifyTodoistStyle(currentTask, "start-5min-before")
+        // Schedule for future
+        if (typeof window !== 'undefined' && (window as any).__DEBUG_NOTIFICATIONS__) {
+          console.log(`[NotificationService] Scheduling start notification for task ${todo.id} in ${Math.round(timeTo5MinBeforeStart / 1000 / 60)} minutes`)
+        }
+        
+        const scheduledTime = now.getTime() + timeTo5MinBeforeStart
+        
+        // Use Service Worker if available for background notifications
+        if (this.swRegistration && this.useServiceWorker) {
+          this.swRegistration.scheduleNotification(
+            todo.id,
+            'start-5min-before',
+            scheduledTime,
+            todo
+          )
+        } else {
+          // Fallback to setTimeout
+          timeouts.push(setTimeout(() => {
+            const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+            // Check again if task is still not muted/snoozed and notifyOnStart is still enabled
+            if (!this.shouldSkipNotifications(currentTask) && (currentTask.notifyOnStart !== false)) {
+              if (typeof window !== 'undefined' && (window as any).__DEBUG_NOTIFICATIONS__) {
+                console.log(`[NotificationService] Firing start notification for task ${currentTask.id}`)
+              }
+              this.notifyTodoistStyle(currentTask, "start-5min-before")
+            }
+          }, timeTo5MinBeforeStart))
+        }
+      } else if (timeToStart > 0 && timeToStart < 5 * 60 * 1000) {
+        // If we're already past the 5-minute mark but before start time, notify immediately
+        // This handles cases where task is created close to start time
+        const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+        if (!this.shouldSkipNotifications(currentTask) && (currentTask.notifyOnStart !== false)) {
+          if (typeof window !== 'undefined' && (window as any).__DEBUG_NOTIFICATIONS__) {
+            console.log(`[NotificationService] Task ${currentTask.id} is within 5 minutes of start, notifying immediately`)
           }
-        }, timeTo5MinBeforeStart))
+          // Notify immediately since we're already within 5 minutes
+          setTimeout(() => {
+            this.notifyTodoistStyle(currentTask, "start-5min-before")
+          }, 100)
+        }
+      } else if (timeToStart <= 0) {
+        // Task has already started, don't schedule notification
+        if (typeof window !== 'undefined' && (window as any).__DEBUG_NOTIFICATIONS__) {
+          console.log(`[NotificationService] Task ${todo.id} has already started, skipping notification`)
+        }
       }
     }
 
@@ -79,6 +163,14 @@ export class NotificationService {
     }
 
     const dueDate = new Date(todo.dueDate)
+    
+    // Validate the date
+    if (isNaN(dueDate.getTime())) {
+      console.warn(`Invalid dueDate for task ${todo.id}:`, todo.dueDate)
+      this.scheduled.set(todo.id, timeouts)
+      return
+    }
+    
     if (todo.dueTime) {
       const [hours, minutes] = todo.dueTime.split(":").map(Number)
       dueDate.setHours(hours, minutes, 0, 0)
@@ -94,34 +186,95 @@ export class NotificationService {
 
     // 30 minutes before due
     if (timeTo30MinBefore > 0) {
-      timeouts.push(setTimeout(() => {
-        const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
-        this.notifyTodoistStyle(currentTask, "30min-before")
-      }, timeTo30MinBefore))
+      const scheduledTime = now.getTime() + timeTo30MinBefore
+      
+      if (this.swRegistration && this.useServiceWorker) {
+        this.swRegistration.scheduleNotification(
+          todo.id,
+          '30min-before',
+          scheduledTime,
+          todo
+        )
+      } else {
+        timeouts.push(setTimeout(() => {
+          const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+          this.notifyTodoistStyle(currentTask, "30min-before")
+        }, timeTo30MinBefore))
+      }
     }
     
     // 15 minutes before due
     if (timeTo15MinBefore > 0) {
-      timeouts.push(setTimeout(() => {
-        const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
-        this.notifyTodoistStyle(currentTask, "15min-before")
-      }, timeTo15MinBefore))
+      const scheduledTime = now.getTime() + timeTo15MinBefore
+      
+      if (this.swRegistration && this.useServiceWorker) {
+        this.swRegistration.scheduleNotification(
+          todo.id,
+          '15min-before',
+          scheduledTime,
+          todo
+        )
+      } else {
+        timeouts.push(setTimeout(() => {
+          const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+          this.notifyTodoistStyle(currentTask, "15min-before")
+        }, timeTo15MinBefore))
+      }
     }
     
     // 5 minutes before due
     if (timeTo5MinBefore > 0) {
-      timeouts.push(setTimeout(() => {
-        const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+      if (typeof window !== 'undefined' && (window as any).__DEBUG_NOTIFICATIONS__) {
+        console.log(`[NotificationService] Scheduling 5min-before-due notification for task ${todo.id} in ${Math.round(timeTo5MinBefore / 1000 / 60)} minutes`)
+      }
+      
+      const scheduledTime = now.getTime() + timeTo5MinBefore
+      
+      if (this.swRegistration && this.useServiceWorker) {
+        this.swRegistration.scheduleNotification(
+          todo.id,
+          '5min-before',
+          scheduledTime,
+          todo
+        )
+      } else {
+        timeouts.push(setTimeout(() => {
+          const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+          if (typeof window !== 'undefined' && (window as any).__DEBUG_NOTIFICATIONS__) {
+            console.log(`[NotificationService] Firing 5min-before-due notification for task ${currentTask.id}`)
+          }
+          this.notifyTodoistStyle(currentTask, "5min-before")
+        }, timeTo5MinBefore))
+      }
+    } else if (timeToDue > 0 && timeToDue < 5 * 60 * 1000) {
+      // If we're already past the 5-minute mark but before due time, notify immediately
+      // This handles cases where task is created close to due time
+      const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+      if (typeof window !== 'undefined' && (window as any).__DEBUG_NOTIFICATIONS__) {
+        console.log(`[NotificationService] Task ${currentTask.id} is within 5 minutes of due, notifying immediately`)
+      }
+      setTimeout(() => {
         this.notifyTodoistStyle(currentTask, "5min-before")
-      }, timeTo5MinBefore))
+      }, 100)
     }
     
     // At due time
     if (timeToDue > 0) {
-      timeouts.push(setTimeout(() => {
-        const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
-        this.notifyTodoistStyle(currentTask, "due-now")
-      }, timeToDue))
+      const scheduledTime = now.getTime() + timeToDue
+      
+      if (this.swRegistration && this.useServiceWorker) {
+        this.swRegistration.scheduleNotification(
+          todo.id,
+          'due-now',
+          scheduledTime,
+          todo
+        )
+      } else {
+        timeouts.push(setTimeout(() => {
+          const currentTask = this.currentTodos.find(t => t.id === todo.id) || todo
+          this.notifyTodoistStyle(currentTask, "due-now")
+        }, timeToDue))
+      }
     }
     
     // Overdue (if not completed)
@@ -169,7 +322,17 @@ export class NotificationService {
       }
     } else {
       // Schedule overdue notification right after due time
-      timeouts.push(setTimeout(() => {
+      const scheduledTime = now.getTime() + Math.max(timeToDue, 0) + 1000
+      
+      if (this.swRegistration && this.useServiceWorker) {
+        this.swRegistration.scheduleNotification(
+          todo.id,
+          'overdue',
+          scheduledTime,
+          todo
+        )
+      } else {
+        timeouts.push(setTimeout(() => {
         // Get fresh task state (in case it was muted/snoozed in the meantime)
         let currentTask = this.currentTodos.find(t => t.id === todo.id)
         
@@ -210,6 +373,7 @@ export class NotificationService {
         
         this.notifyTodoistStyle(taskToNotify, "overdue")
       }, Math.max(timeToDue, 0) + 1000))
+      }
     }
     this.scheduled.set(todo.id, timeouts)
   }
@@ -337,6 +501,13 @@ export class NotificationService {
     })
     this.scheduled.clear()
     this.notifications.clear()
+    
+    // Clear Service Worker notifications (async, but don't wait)
+    if (this.swRegistration && this.useServiceWorker) {
+      this.swRegistration.clearAllNotifications().catch(() => {
+        // Ignore errors
+      })
+    }
 
     // Clean up old overdue notification tracking (older than today)
     if (typeof window !== 'undefined') {
@@ -404,5 +575,24 @@ export class NotificationService {
       return permission === "granted"
     }
     return false
+  }
+
+  // Debug method to check scheduled notifications
+  public getScheduledNotifications(): { taskId: string; count: number }[] {
+    const result: { taskId: string; count: number }[] = []
+    this.scheduled.forEach((timeouts, taskId) => {
+      result.push({ taskId, count: timeouts.length })
+    })
+    return result
+  }
+
+  // Debug method to manually trigger notification for testing
+  public debugTriggerNotification(taskId: string, type: "start-5min-before" | "5min-before" = "start-5min-before") {
+    const task = this.currentTodos.find(t => t.id === taskId)
+    if (task) {
+      this.notifyTodoistStyle(task, type)
+    } else {
+      console.warn(`Task ${taskId} not found in currentTodos`)
+    }
   }
 } 
