@@ -35,9 +35,12 @@ export function UserNav() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        className="w-56 z-[100]" 
-        align="end" 
+        className="w-56 z-[100] max-w-[calc(100vw-1rem)]" 
+        align="end"
         sideOffset={8}
+        side="bottom"
+        avoidCollisions={true}
+        collisionPadding={16}
       >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">

@@ -959,3 +959,25 @@
     padding: 0.25rem;
   }
 }
+
+/* Mobile positioning fixes for header overlays */
+@media (max-width: 640px) {
+  /* Ensure popovers and dropdowns stay within viewport on mobile */
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 1rem) !important;
+  }
+  
+  /* Notification bell popover specific */
+  [data-radix-popover-content] {
+    max-width: calc(100vw - 1rem) !important;
+    right: 0.5rem !important;
+    left: auto !important;
+  }
+  
+  /* Dropdown menus specific */
+  [data-radix-dropdown-menu-content] {
+    max-width: calc(100vw - 1rem) !important;
+    right: 0.5rem !important;
+    left: auto !important;
+  }
+}

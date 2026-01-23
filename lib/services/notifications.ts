@@ -454,6 +454,19 @@ export class NotificationService {
       }
     }
 
+    // Dispatch custom event for notification bell component
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notification-fired', {
+        detail: {
+          type: 'NOTIFICATION_FIRED',
+          taskId: todo.id,
+          notificationType: type,
+          title,
+          body: description,
+        }
+      }))
+    }
+
     // Show toast notification
     toast({
       title,

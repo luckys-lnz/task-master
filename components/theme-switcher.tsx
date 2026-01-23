@@ -30,8 +30,11 @@ export function ThemeSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
-        className="z-[100]"
+        className="z-[100] min-w-[8rem] max-w-[calc(100vw-1rem)]"
         sideOffset={8}
+        side="bottom"
+        avoidCollisions={true}
+        collisionPadding={16}
       >
         <DropdownMenuItem onClick={() => setTheme("light")}>
           Light

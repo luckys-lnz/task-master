@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckSquare } from "lucide-react";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { UserNav } from "@/components/user-nav";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import type { Metadata } from 'next';
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
@@ -45,7 +46,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <CheckSquare className="h-6 w-6 text-primary flex-shrink-0" />
                   <span className="font-semibold text-foreground">Task Master</span>
                 </Link>
-                <nav className="flex items-center gap-3 flex-shrink-0" aria-label="User menu">
+                <nav className="flex items-center gap-2 sm:gap-3 flex-shrink-0" aria-label="User menu">
+                  <NotificationBell />
                   <ThemeSwitcher />
                   <UserNav />
                 </nav>
