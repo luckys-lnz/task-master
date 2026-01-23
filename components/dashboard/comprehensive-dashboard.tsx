@@ -202,9 +202,16 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
     return filtered
   }, [todos, activeFilter])
 
-  const handleAddTask = (task: Partial<Task>) => {
+  const handleAddTask = async (task: Partial<Task>) => {
     const isDuplicate = !!(task as Task).duplicatedFromTaskId
-    addTodo(task as Task, isDuplicate ? "Task duplicated successfully" : "Task added successfully")
+    const newTask = await addTodo(task as Task, isDuplicate ? "Task duplicated successfully" : "Task added successfully")
+    
+    // Immediately update notification service for the new task
+    if (newTask) {
+      const notificationService = NotificationService.getInstance()
+      notificationService.updateTaskNotifications(newTask)
+    }
+    
     setDuplicateTaskData(null) // Clear duplicate data after adding
   }
 
@@ -233,9 +240,19 @@ export function ComprehensiveDashboard({ userName }: ComprehensiveDashboardProps
   const handleTaskUpdate = async (id: string, updates: Partial<Task>, successMessage?: string) => {
     await updateTodo(id, updates, successMessage)
     
-    // Immediately update notification service if snooze/mute state changed
-    // The todos state will be updated by updateTodo, so we can access it after a brief delay
-    if (updates.notificationsMuted !== undefined || updates.snoozedUntil !== undefined) {
+    // Immediately update notification service if any notification-related fields changed
+    // This includes: time fields (startTime, endTime, dueDate, dueTime), notification settings, or status
+    const shouldUpdateNotifications = 
+      updates.notificationsMuted !== undefined || 
+      updates.snoozedUntil !== undefined ||
+      updates.startTime !== undefined ||
+      updates.endTime !== undefined ||
+      updates.dueDate !== undefined ||
+      updates.dueTime !== undefined ||
+      updates.notifyOnStart !== undefined ||
+      updates.status !== undefined
+    
+    if (shouldUpdateNotifications) {
       // Use a small delay to ensure state has updated
       setTimeout(() => {
         const updatedTask = todos?.find(t => t.id === id)
