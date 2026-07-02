@@ -159,7 +159,7 @@ export async function POST(req: Request) {
         { 
           error: "Supabase is not configured. Please check your environment variables.",
           details: error.message,
-          help: "See SUPABASE_STORAGE_SETUP.md for setup instructions."
+          help: "See docs/SUPABASE_STORAGE_SETUP.md for setup instructions."
         },
         { status: 500 }
       );
