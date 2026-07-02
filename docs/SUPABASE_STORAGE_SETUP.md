@@ -30,6 +30,10 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 4. Make it **Public** (so images can be accessed via public URLs)
 5. Click **Create bucket**
 
+## Bucket Size Limit
+
+Set the bucket's **file size limit to 5 MB** (Storage → `avatars` bucket → Edit bucket) to match the app's own validation in `app/api/user/upload-avatar/route.ts` (`maxSize = 5 * 1024 * 1024`). If these two limits ever drift apart, uploads that pass the app's check still get rejected by Supabase with a `413 The object exceeded the maximum allowed size` error. Also restrict **allowed MIME types** to `image/jpeg, image/png, image/gif, image/webp` to match the app's own allow-list.
+
 ## Storage Policies (Optional but Recommended)
 
 For better security, you can set up RLS (Row Level Security) policies:

@@ -82,20 +82,26 @@ export async function POST(req: Request) {
       
       // Provide more specific error messages
       let errorMessage = "Failed to upload file to storage.";
+      let status = 500;
       if (uploadError.message?.includes('Bucket not found')) {
         errorMessage = "Storage bucket 'avatars' not found. Please create it in your Supabase dashboard.";
       } else if (uploadError.message?.includes('new row violates row-level security')) {
         errorMessage = "Storage policy error. Please check your Supabase storage policies.";
+      } else if ((uploadError as any).statusCode === '413' || uploadError.message?.includes('exceeded the maximum allowed size')) {
+        // The app's own maxSize check above passed, but the Supabase bucket's
+        // file_size_limit is smaller — the two are supposed to match.
+        errorMessage = "File too large for storage. The upload bucket's size limit is smaller than this app allows — ask an admin to raise it in Supabase Storage settings.";
+        status = 413;
       } else if (uploadError.message) {
         errorMessage = `Upload failed: ${uploadError.message}`;
       }
-      
+
       return NextResponse.json(
-        { 
+        {
           error: errorMessage,
           details: uploadError.message || "Unknown error"
         },
-        { status: 500 }
+        { status }
       );
     }
 
