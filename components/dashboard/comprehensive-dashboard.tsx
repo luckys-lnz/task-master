@@ -460,10 +460,31 @@ export function ComprehensiveDashboard({ userName, defaultView }: ComprehensiveD
 
   // Track when duplicated tasks have subtasks completed to auto-mute original
   const handleTaskUpdate = async (id: string, updates: Partial<Task>, successMessage?: string) => {
-    // If the due date is being pushed forward, increment defer_count
-    const isDeferral = updates.dueDate !== undefined || updates.snoozedUntil !== undefined
+    const task = todos?.find(t => t.id === id)
+
+    // A deferral is a due date genuinely pushed later than it currently is, or a
+    // fresh snooze — NOT just "dueDate is present in this patch". The task editor
+    // always resubmits dueDate even when only unrelated fields (title, tags, etc.)
+    // changed, so presence alone would count every edit as a deferral.
+    //
+    // Prefer endTime over dueDate on both sides of the comparison: the API stores
+    // due_date as a date-only midnight timestamp (due_time holds the real time of
+    // day as text — see app/api/tasks/[id]/route.ts), while end_time is a true
+    // timezone-safe timestamp (same precedence isTaskOverdue uses in lib/utils.ts).
+    // Comparing raw dueDate would make every save with an end time look "later"
+    // than a stored midnight-only value, even with nothing actually changed.
+    const previousMoment = task?.endTime
+      ? new Date(task.endTime).getTime()
+      : task?.dueDate ? new Date(task.dueDate).getTime() : null
+    const nextMoment = updates.endTime
+      ? new Date(updates.endTime).getTime()
+      : updates.dueDate ? new Date(updates.dueDate).getTime() : null
+    const isDueDatePushedBack =
+      previousMoment !== null && nextMoment !== null && nextMoment > previousMoment
+    const isNewSnooze = !!updates.snoozedUntil
+    const isDeferral = isDueDatePushedBack || isNewSnooze
+
     if (isDeferral && updates.status !== "COMPLETED") {
-      const task = todos?.find(t => t.id === id)
       if (task) {
         const newDeferCount = (task.deferCount ?? 0) + 1
         updates = { ...updates, deferCount: newDeferCount }
@@ -537,16 +558,18 @@ export function ComprehensiveDashboard({ userName, defaultView }: ComprehensiveD
       setShieldTask(null)
       setDetailTask(shieldTask)
       setDetailSheetOpen(true)
+      await updateTodo(id, { deferCount: 0, procrastinationReason: "too-big" })
     } else if (action === "clarify") {
       setShieldTask(null)
       setDetailTask(shieldTask)
       setDetailSheetOpen(true)
+      await updateTodo(id, { deferCount: 0, procrastinationReason: "not-clear" })
     } else if (action === "reschedule") {
       const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
-      await updateTodo(id, { dueDate: tomorrow.toISOString(), procrastinationReason: "reschedule" })
+      await updateTodo(id, { dueDate: tomorrow.toISOString(), deferCount: 0, procrastinationReason: "reschedule" })
       setShieldTask(null)
     } else if (action === "deprioritize") {
-      await updateTodo(id, { priority: "LOW", procrastinationReason: "not-important" })
+      await updateTodo(id, { priority: "LOW", deferCount: 0, procrastinationReason: "not-important" })
       setShieldTask(null)
     } else if (action === "delete") {
       await deleteTodo(id)
@@ -852,7 +875,7 @@ export function ComprehensiveDashboard({ userName, defaultView }: ComprehensiveD
           if (!open) setEditingTask(null)
         }}
         task={editingTask}
-        onUpdate={updateTodo}
+        onUpdate={handleTaskUpdate}
       />
 
       {/* Bulk Action Bar */}
