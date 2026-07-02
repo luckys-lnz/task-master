@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getValidatedSession } from "@/lib/validate-session";
 import { db } from "@/lib/db";
 import { tasks, subtasks, taskCollaborators } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import { mapTaskToCamelCase, isTaskOverdue } from "@/lib/utils";
 import { handleApiError } from "@/lib/errors";
@@ -355,6 +355,32 @@ export async function PATCH(
       });
     }
 
+    // When completing a task, claim the PENDING/OVERDUE → COMPLETED transition
+    // atomically: WHERE status != 'COMPLETED' means only one of any concurrent
+    // requests (double-click, multi-tab, Realtime-triggered refetch racing a
+    // manual completion) gets a non-empty RETURNING. Only that request is
+    // allowed to spawn the next recurrence below — otherwise two requests can
+    // both observe "not completed yet" and both insert a next occurrence.
+    let completionClaimed = true;
+    if (isCompleting) {
+      const claim = await db
+        .update(tasks)
+        .set({
+          status: updateData.status,
+          completed_at: updateData.completed_at,
+          completed_by: updateData.completed_by,
+          overdue_at: updateData.overdue_at,
+          updated_at: now,
+        })
+        .where(and(eq(tasks.id, params.id), eq(tasks.user_id, userId), sql`${tasks.status} != 'COMPLETED'`))
+        .returning({ id: tasks.id });
+      completionClaimed = claim.length > 0;
+      delete updateData.status;
+      delete updateData.completed_at;
+      delete updateData.completed_by;
+      delete updateData.overdue_at;
+    }
+
     // Only update if there are fields to update (besides updated_at)
     const fieldsToUpdate = Object.keys(updateData).filter(key => key !== 'updated_at');
     if (fieldsToUpdate.length > 0) {
@@ -417,8 +443,10 @@ export async function PATCH(
       with: { subtasks: true }
     });
 
-    // Auto-create next recurrence when completing a recurring task
-    if (isCompleting && currentTask.recurrence_type) {
+    // Auto-create next recurrence when completing a recurring task.
+    // completionClaimed gates this on having won the atomic completion race above —
+    // see the comment there for why an existence check alone isn't sufficient.
+    if (isCompleting && completionClaimed && currentTask.recurrence_type) {
       const rt = currentTask.recurrence_type
       const ri = currentTask.recurrence_interval ?? 1
 
