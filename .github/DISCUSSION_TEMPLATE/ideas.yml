@@ -1,0 +1,21 @@
+title: "[Idea] "
+labels: ["idea"]
+body:
+  - type: textarea
+    attributes:
+      label: What's the idea?
+      description: Describe the feature or improvement you'd like to see.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What problem does it solve?
+      description: What's the current pain point or gap this addresses?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Mockups, links, or examples from other tools, if any.
+    validations:
+      required: false
