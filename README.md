@@ -79,6 +79,15 @@ npm run dev
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## Community
+
+Have a question, an idea, or want to show off what you built? Head over to [GitHub Discussions](https://github.com/LivinginPixel/task-master/discussions):
+
+- **Ideas** — propose new features or improvements
+- **Q&A** — ask for help using or setting up the app
+- **Show and tell** — share what you have built or customized
+- **General** — anything else
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
