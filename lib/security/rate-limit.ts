@@ -7,8 +7,7 @@
  * 
  * Key Features:
  * - Hashed IPs for privacy (never store raw IPs in Redis)
- * - Fail-closed in production (blocks if Redis unavailable)
- * - Fail-open in development (with warnings)
+ * - Fail-open when Redis is unavailable (with server warnings)
  * - Sliding window algorithm (prevents burst attacks)
  * - Per-IP, per-email, and composite limiters
  * - Reusable limiter factories
@@ -73,11 +72,14 @@ function getRedis(): Redis | null {
 
   if (!url || !token) {
     if (isProduction) {
-      // Fail closed in production
+      // Keep authentication and registration available when the optional
+      // rate-limit service has not been configured.
       redisError = new Error(
         "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in production"
       );
-      console.error("❌ CRITICAL: Redis not configured in production. Rate limiting will BLOCK all requests.");
+      console.error(
+        "Rate limiting disabled: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are not configured."
+      );
       return null;
     } else {
       // Fail open in development
@@ -100,18 +102,14 @@ function getRedis(): Redis | null {
     redisError = error instanceof Error ? error : new Error(String(error));
     console.error("Failed to initialize Upstash Redis:", redisError);
     
-    if (isProduction) {
-      // Fail closed in production
-      return null;
-    }
-    // Fail open in development
+    // Fail open when the optional rate-limit service cannot be initialized.
     return null;
   }
 }
 
 /**
- * Create a blocking limiter (fail-closed)
- * Blocks all requests if Redis is unavailable
+ * Create a limiter that degrades gracefully when Redis is unavailable.
+ * Redis-backed limits remain enforced whenever the service is available.
  */
 function createBlockingLimiter(
   redisClient: Redis | null,
@@ -119,29 +117,14 @@ function createBlockingLimiter(
   prefix: string
 ): RateLimiter {
   if (!redisClient) {
-    const isProduction = process.env.NODE_ENV === "production";
-    
-    if (isProduction) {
-      // Fail closed - block all requests
-      return {
-        limit: async (_identifier: string) => ({
-          success: false,
-          remaining: 0,
-          limit: 0,
-          reset: Date.now() + 60000, // 1 minute
-        }),
-      };
-    } else {
-      // Fail open in development
-      return {
-        limit: async (_identifier: string) => ({
-          success: true,
-          remaining: 999,
-          limit: 999,
-          reset: Date.now() + 600000,
-        }),
-      };
-    }
+    return {
+      limit: async (_identifier: string) => ({
+        success: true,
+        remaining: 999,
+        limit: 999,
+        reset: Date.now() + 600000,
+      }),
+    };
   }
 
   const ratelimit = new Ratelimit({
@@ -164,12 +147,7 @@ function createBlockingLimiter(
         };
       } catch (error) {
         // Redis fetch failed (network unreachable, timeout, etc.)
-        const isProduction = process.env.NODE_ENV === "production";
-        if (isProduction) {
-          console.error("❌ Rate limiter fetch failed in production:", error);
-          return { success: false, remaining: 0, limit: 0, reset: Date.now() + 60000 };
-        }
-        console.warn("⚠️  Rate limiter unavailable (Redis unreachable). Failing open in development.");
+        console.error("Rate limiter unavailable; allowing request:", error);
         return { success: true, remaining: 999, limit: 999, reset: Date.now() + 600000 };
       }
     },
