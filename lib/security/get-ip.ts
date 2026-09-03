@@ -2,15 +2,15 @@
  * ======================================================================
  * CLIENT IP EXTRACTION UTILITY
  * ======================================================================
- * 
+ *
  * Enterprise-grade IP extraction for Vercel serverless environments.
- * 
+ *
  * Why this exists:
  * - Vercel serverless functions don't have req.connection.remoteAddress
  * - NextAuth passes different request object types (Fetch API vs Node.js)
  * - Production environments use proxy headers (x-forwarded-for, x-real-ip)
  * - Without correct IP extraction, all users appear as the same IP
- * 
+ *
  * Security considerations:
  * - Never logs or exposes raw IPs
  * - Handles IPv4 and IPv6
@@ -35,18 +35,18 @@ function isValidIp(ip: string): boolean {
 
 /**
  * Extract real client IP from request
- * 
+ *
  * Priority order:
  * 1. x-forwarded-for (first IP in comma-separated chain) - Vercel/proxy standard
  * 2. x-real-ip - Direct proxy header
  * 3. req.ip - Direct IP property (if available)
  * 4. cf-connecting-ip - Cloudflare header
  * 5. 0.0.0.0 - Fallback (prevents rate limiting from breaking)
- * 
+ *
  * Handles both:
  * - Fetch API Request objects (standard web Request with Headers instance)
  * - Node.js request objects (NextAuth internal calls with plain object headers)
- * 
+ *
  * @param req - Request object (Fetch API Request or NextAuth internal request)
  * @returns Client IP address string (validated)
  */
@@ -59,7 +59,10 @@ export function getClientIp(req: Request | any): string {
 
   // Case 1: Fetch API Request object (standard web Request)
   // Headers is a Headers instance with .get() method
-  if (req.headers instanceof Headers || typeof req.headers.get === "function") {
+  if (
+    req.headers &&
+    (req.headers instanceof Headers || typeof req.headers.get === "function")
+  ) {
     // x-forwarded-for can contain multiple IPs: "client, proxy1, proxy2"
     // We want the first one (original client)
     const forwarded = req.headers.get("x-forwarded-for");
@@ -94,7 +97,8 @@ export function getClientIp(req: Request | any): string {
       req.headers["X-FORWARDED-FOR"];
 
     if (forwarded) {
-      const ipString = typeof forwarded === "string" ? forwarded : String(forwarded);
+      const ipString =
+        typeof forwarded === "string" ? forwarded : String(forwarded);
       const firstIp = ipString.split(",")[0]?.trim();
       if (firstIp && isValidIp(firstIp)) {
         ip = firstIp;
