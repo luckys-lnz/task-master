@@ -2,7 +2,7 @@
  * ======================================================================
  * NEXTAUTH V5+ ENTERPRISE CONFIGURATION
  * ======================================================================
- * 
+ *
  * Production-grade authentication with:
  * - Google OAuth
  * - Email/Password Credentials
@@ -11,7 +11,7 @@
  * - Redis-based rate limiting (Upstash)
  * - Account locking on failed attempts
  * - Privacy-first IP hashing
- * 
+ *
  * CRITICAL LOGIN FLOW:
  * 1. Extract and sanitize input
  * 2. Lookup user (check account lock)
@@ -25,7 +25,7 @@
  *    - Reset failed attempts
  *    - Unlock account if locked
  *    - Allow login (even if rate limited)
- * 
+ *
  * This ensures:
  * - Correct passwords are NEVER blocked
  * - Wrong passwords are blocked if rate limited
@@ -33,23 +33,12 @@
  */
 
 import { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "./db";
 import { users, accounts, sessions, verificationTokens } from "./db/schema";
 import { eq } from "drizzle-orm";
-import { compare } from "bcryptjs";
 import { env } from "./env";
-import {
-  normalizeEmail,
-  checkAccountLockedAndGetUser,
-  incrementFailedLoginAttempts,
-  resetFailedLoginAttempts,
-} from "./auth-utils";
-import { sanitizeEmail, validateInputSecurity } from "./security";
-import { getClientIp } from "./security/get-ip";
-import { loginIpLimiter, loginEmailLimiter } from "./security/rate-limit";
 
 declare module "next-auth" {
   interface Session {
@@ -106,7 +95,7 @@ export const authOptions: NextAuthOptions = {
         ]
       : []),
 
-    // Credentials (Email/Password)
+    /* TODO: Re-enable email/password authentication after the Google-only phase.
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -193,6 +182,7 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    */
   ],
 
   callbacks: {
@@ -205,7 +195,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
-        
+
         // Fetch latest user data from database to get updated avatar
         try {
           const dbUser = await db.query.users.findFirst({
@@ -217,7 +207,7 @@ export const authOptions: NextAuthOptions = {
               avatar_url: true,
             },
           });
-          
+
           if (dbUser) {
             // Use avatar_url if available, otherwise fall back to image
             session.user.name = dbUser.name;
